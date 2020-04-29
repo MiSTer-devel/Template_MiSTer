@@ -5,7 +5,7 @@ This core contains the latest version of framework and will be updated when fram
 
 It's highly recommended to follow the notes to keep it standartized for easier maintanance and collaboration with other developers.
 
-# Source structure
+## Source structure
 
 ### Legend:
 * `<core_name>` - you have to use the same name where you see this in this manual. Basically it's your core name.
