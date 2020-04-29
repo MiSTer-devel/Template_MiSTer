@@ -30,5 +30,5 @@ It's highly recommended to follow the notes to keep it standartized for easier m
 Framework implies use of at least one PLL in the core. Framework doesn't comtain this PLL but requires it to be placed in `rtl` folder, so `pll` folder and `pll.v`, `pll.qip` files must be present, however PLL settings are up to the core.
 
 # Quartus version
-Cores must be developed in **Quartus v17.0.x**. It's recommended to have updates, so it will ve **v17.0.2**. Newer versions won't give any benefits to FPGA used in MiSTer, howver they will introduce incompatibilities in project settings and it will make harder to maintain the core and collaborate with others. **So please stick to good old 17.0.x version.** You may use either Lite or Standard license.
+Cores must be developed in **Quartus v17.0.x**. It's recommended to have updates, so it will be **v17.0.2**. Newer versions won't give any benefits to FPGA used in MiSTer, howver they will introduce incompatibilities in project settings and it will make harder to maintain the core and collaborate with others. **So please stick to good old 17.0.x version.** You may use either Lite or Standard license.
 
