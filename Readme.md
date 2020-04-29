@@ -16,7 +16,7 @@ It's highly recommended to follow the notes to keep it standartized for easier m
 * `releases` - the folder where rbf files should be placed. format of each rbf is: <core_name>_YYMMDD.rbf YYMMDD is date code of release.
 
 ### Other standard files:
-* `<core_name>.qpf`- quartus project file copy it as is and then modify the line `PROJECT_REVISION = "<core_name>"` according to your core name.
+* `<core_name>.qpf`- quartus project file. Copy it as is and then modify the line `PROJECT_REVISION = "<core_name>"` according to your core name.
 * `<core_name>.qsf` - quartus settings file. In most cases you don't need to modify anything inside (although you may wont to adjust some settings in quartus - this is fine, but keep changes minimal). You also need to watch this file before you make a commit. Quartus in some conditions may "spit" all settings from different files into this file so it will become large. If you see this, then simply revert it to original file.
 * `<core_name>.srf` - optional file to disable some warnings which are safe to disable and make message list more clean, so you will have less chance to miss some improtant warnings. You are free to modify it.
 * `<core_name>.sdc` - optional file for constraints in case if core require some special constraints. You are free to modify it.
