@@ -27,7 +27,7 @@ It's highly recommended to follow the notes to keep it standartized for easier m
 * `jtag.cdf` - it will be produced when you compile the core. By clicking it in Quartus IDE, you will launch programmer where you can send the core to MiSTer over USB blaster cable (see manual for DE10-nano how to connect it). This file normally is not presend on cleaned project and not includede in commits.
 
 ### PLL:
-Framework implies use of at least one PLL in the core. Framework doesn't comtain this PLL but requires it to be placed in `rtl` folder, so `pll` folder and `pll.v`, `pll.qip` files must be present, however PLL settings are up to core.
+Framework implies use of at least one PLL in the core. Framework doesn't comtain this PLL but requires it to be placed in `rtl` folder, so `pll` folder and `pll.v`, `pll.qip` files must be present, however PLL settings are up to the core.
 
 # Quartus version
 Cores must be developed in **Quartus v17.0.x**. It's recommended to have updates, so it will ve **v17.0.2**. Newer versions won't give any benefits to FPGA used in MiSTer, howver they will introduce incompatibilities in project settings and it will make harder to maintain the core and collaborate with others. **So please stick to good old 17.0.x version.** You may use either Lite or Standard license.
