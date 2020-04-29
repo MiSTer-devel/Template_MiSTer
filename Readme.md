@@ -8,7 +8,7 @@ It's highly recommended to follow the notes to keep it standartized for easier m
 # Source structure
 
 Legend:
-* <core_name> - you have to use the same name where you see this in this manua. Basically it's your core name.
+* `<core_name>` - you have to use the same name where you see this in this manual. Basically it's your core name.
 
 Standard MiSTer core should have following folders:
 * `sys` - the framework. Basically it's prohibited to change any files in this folder. Framework updates may erase any customization in this folder. All MiSTer cores have to include sys folder as is from this core.
