@@ -7,15 +7,15 @@ It's highly recommended to follow the notes to keep it standartized for easier m
 
 # Source structure
 
-Legend:
+### Legend:
 * `<core_name>` - you have to use the same name where you see this in this manual. Basically it's your core name.
 
-Standard MiSTer core should have following folders:
+### Standard MiSTer core should have following folders:
 * `sys` - the framework. Basically it's prohibited to change any files in this folder. Framework updates may erase any customization in this folder. All MiSTer cores have to include sys folder as is from this core.
 * `rtl` - the actual source of core. It's up to developer how to organize the inner structure of this folder. Exception is pll folder/files (see below).
 * `releases` - the folder where rbf files should be placed. format of each rbf is: <core_name>_YYMMDD.rbf YYMMDD is date code of release.
 
-Other standard files:
+### Other standard files:
 * `<core_name>.qpf`- quartus project file copy it as is and then modify the line `PROJECT_REVISION = "<core_name>"` according to your core name.
 * `<core_name>.qsf` - quartus settings file. In most cases you don't need to modify anything inside (although you may wont to adjust some settings in quartus - this is fine, but keep changes minimal). You also need to watch this file before you make a commit. Quartus in some conditions may "spit" all settings from different files into this file so it will become large. If you see this, then simply revert it to original file.
 * `<core_name>.srf` - optional file to disable some warnings which are safe to disable and make message list more clean, so you will have less chance to miss some improtant warnings. You are free to modify it.
