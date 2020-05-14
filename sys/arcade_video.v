@@ -77,17 +77,29 @@ arcade_vga #(DW) vga
 	.VGA_VBL(VBL)
 );
 
-wire [DW-1:0] RGB_out;
+// Limit input of rotation block to 12bpp in order
+// to overcome memory limitations
+localparam RW = DW==24 ? 12 : DW;
+wire [RW-1:0] RGB_out;
+wire [RW-1:0] rotate_in;
 wire rhs,rvs,rhblank,rvblank;
 
-screen_rotate #(WIDTH,HEIGHT,DW,4) rotator
+generate
+	if( DW == 24 ) begin
+		assign rotate_in = { RGB_fix[23:20], RGB_fix[15:12], RGB_fix[7:4] };
+	end else begin
+		assign rotate_in = RGB_fix;
+	end
+endgenerate
+
+screen_rotate #(WIDTH,HEIGHT,RW,4) rotator
 (
 	.clk(VGA_CLK),
 	.ce(CE),
 
 	.ccw(rotate_ccw),
 
-	.video_in(RGB_fix),
+	.video_in(rotate_in),
 	.hblank(HBL),
 	.vblank(VBL),
 
@@ -121,16 +133,40 @@ generate
 		wire [3:0] Br = RGB_out[3:0];
 	end
 	else begin // 24
-		wire [7:0] Rr = RGB_out[23:16];
-		wire [7:0] Gr = RGB_out[15:8];
-		wire [7:0] Br = RGB_out[7:0];
+		wire [7:0] Rr = { RGB_out[11:8], RGB_out[11:8] };
+		wire [7:0] Gr = { RGB_out[7:4], RGB_out[7:4] };
+		wire [7:0] Br = { RGB_out[3:0], RGB_out[3:0] };
 	end
 endgenerate
 
+reg        norot;
+reg  [2:0] sl;
+reg  scandoubler;
+
+always @(posedge VGA_CLK) begin
+    sl          <= fx ? fx - 1'd1 : 3'd0;
+    scandoubler <= fx || forced_scandoubler;
+end
+
 assign HDMI_CLK = VGA_CLK;
 assign HDMI_SL  = sl[1:0];
-wire [2:0] sl = fx ? fx - 1'd1 : 3'd0;
-wire scandoubler = fx || forced_scandoubler;
+
+localparam MIXW = DW==24 ? 8 : 4;
+localparam HALF_DEPTH = DW!=24;
+
+wire [MIXW-1:0] mixin_r, mixin_g, mixin_b;
+
+generate
+	if( MIXW==4 ) begin
+		assign {mixin_r, mixin_g, mixin_b} = no_rotate ? {R[7:4],G[7:4],B[7:4]} : {Rr,Gr,Br};
+	end else begin
+		assign {mixin_r, mixin_g, mixin_b} = no_rotate ? {R,G,B} : 
+			{ RGB_out[11:8], RGB_out[11:8], // Red
+			  RGB_out[ 7:4], RGB_out[ 7:4], // green
+			  RGB_out[ 3:0], RGB_out[ 3:0]  // blue
+			};
+	end
+endgenerate
 
 video_mixer #(.LINE_LENGTH(WIDTH+4), .HALF_DEPTH(DW!=24), .GAMMA(GAMMA)) video_mixer
 (
@@ -142,9 +178,9 @@ video_mixer #(.LINE_LENGTH(WIDTH+4), .HALF_DEPTH(DW!=24), .GAMMA(GAMMA)) video_m
 	.hq2x(fx==1),
 	.gamma_bus(gamma_bus),
 
-	.R(no_rotate ? ((DW!=24) ? R[7:4] : R) : Rr),
-	.G(no_rotate ? ((DW!=24) ? G[7:4] : G) : Gr),
-	.B(no_rotate ? ((DW!=24) ? B[7:4] : B) : Br),
+	.R     ( mixin_r             ),
+	.G     ( mixin_g             ),
+	.B     ( mixin_b             ),
 
 	.HSync (no_rotate ? HS  : rhs),
 	.VSync (no_rotate ? VS  : rvs),
