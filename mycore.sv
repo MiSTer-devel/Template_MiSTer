@@ -154,6 +154,24 @@ localparam CONF_STR = {
 	"O2,TV Mode,NTSC,PAL;",
 	"O34,Noise,White,Red,Green,Blue;",
 	"-;",
+	"P1,Test Page 1;",
+	"P1-;",
+	"P1-, -= Options in page 1 =-;",
+	"P1-;",
+	"P1O5,Option 1-1,Off,On;",
+	"d0P1F1,BIN;",
+	"H0P1O6,Option 1-2,Off,On;",
+	"-;",
+	"P2,Test Page 2;",
+	"P2-;",
+	"P2-, -= Options in page 2 =-;",
+	"P2-;",
+	"P2S0,DSK;",
+	"P2O67,Option 2,1,2,3,4;",
+	"-;",
+	"-;",
+	"T0,Reset;",
+	"R0,Reset and close OSD;",
 	"V,v",`BUILD_DATE 
 };
 
@@ -172,6 +190,7 @@ hps_io #(.STRLEN($size(CONF_STR)>>3)) hps_io
 
 	.buttons(buttons),
 	.status(status),
+	.status_menumask({status[5]}),
 	
 	.ps2_key(ps2_key)
 );
