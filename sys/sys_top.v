@@ -466,7 +466,6 @@ always @(posedge FPGA_CLK2_50) begin
 end
 
 wire clk_100m;
-wire clk_audio = FPGA_CLK3_50;
 wire clk_pal   = FPGA_CLK3_50;
 
 ////////////////////  SYSTEM MEMORY & SCALER  /////////////////////////
@@ -1113,45 +1112,21 @@ end
 assign SDCD_SPDIF =(SW[3] & ~spdif) ? 1'b0 : 1'bZ;
 
 `ifndef DUAL_SDRAM
-	wire anl,anr;
+	wire analog_l, analog_r;
 
 	assign AUDIO_SPDIF = SW[3] ? 1'bZ : SW[0] ? HDMI_LRCLK : spdif;
-	assign AUDIO_R     = SW[3] ? 1'bZ : SW[0] ? HDMI_I2S   : anr;
-	assign AUDIO_L     = SW[3] ? 1'bZ : SW[0] ? HDMI_SCLK  : anl;
+	assign AUDIO_R     = SW[3] ? 1'bZ : SW[0] ? HDMI_I2S   : analog_r;
+	assign AUDIO_L     = SW[3] ? 1'bZ : SW[0] ? HDMI_SCLK  : analog_l;
 `endif
 
-assign HDMI_MCLK = 0;
+assign HDMI_MCLK = clk_audio;
+wire clk_audio;
 
-wire [15:0] audio_l, audio_l_pre;
-aud_mix_top audmix_l
+pll_audio pll_audio
 (
-	.clk(clk_audio),
-	.att(vol_att),
-	.mix(audio_mix),
-	.is_signed(audio_s),
-
-	.core_audio(audio_ls),
-	.pre_in(audio_r_pre),
-	.linux_audio(alsa_l),
-
-	.pre_out(audio_l_pre),
-	.out(audio_l)
-);
-
-wire [15:0] audio_r, audio_r_pre;
-aud_mix_top audmix_r
-(
-	.clk(clk_audio),
-	.att(vol_att),
-	.mix(audio_mix),
-	.is_signed(audio_s),
-
-	.core_audio(audio_rs),
-	.pre_in(audio_l_pre),
-	.linux_audio(alsa_r),
-
-	.pre_out(audio_r_pre),
-	.out(audio_r)
+	.refclk(FPGA_CLK3_50),
+	.rst(0),
+	.outclk_0(clk_audio)
 );
 
 wire spdif;
@@ -1159,18 +1134,28 @@ audio_out audio_out
 (
 	.reset(reset),
 	.clk(clk_audio),
+
+	.att(vol_att),
+	.mix(audio_mix),
 	.sample_rate(audio_96k),
-	.left_in(audio_l),
-	.right_in(audio_r),
+
+	.is_signed(audio_s),
+	.core_l(audio_l),
+	.core_r(audio_r),
+
+	.alsa_l(alsa_l),
+	.alsa_r(alsa_r),
+
 	.i2s_bclk(HDMI_SCLK),
 	.i2s_lrclk(HDMI_LRCLK),
 	.i2s_data(HDMI_I2S),
 `ifndef DUAL_SDRAM
-	.dac_l(anl),
-	.dac_r(anr),
+	.dac_l(analog_l),
+	.dac_r(analog_r),
 `endif
 	.spdif(spdif)
 );
+
 
 wire [28:0] alsa_address;
 wire [63:0] alsa_readdata;
@@ -1221,7 +1206,7 @@ assign user_in[6] =         USER_IO[6];
 ///////////////////  User module connection ////////////////////////////
 
 wire        clk_sys;
-wire [15:0] audio_ls, audio_rs;
+wire [15:0] audio_l, audio_r;
 wire        audio_s;
 wire  [1:0] audio_mix;
 wire  [1:0] scanlines;
@@ -1328,8 +1313,9 @@ emu emu
 	.LED_POWER(led_power),
 	.LED_DISK(led_disk),
 
-	.AUDIO_L(audio_ls),
-	.AUDIO_R(audio_rs),
+	.CLK_AUDIO(clk_audio),
+	.AUDIO_L(audio_l),
+	.AUDIO_R(audio_r),
 	.AUDIO_S(audio_s),
 
 `ifdef USE_DDRAM
@@ -1425,56 +1411,6 @@ always @(posedge clk) begin
 	if(s2 != s1) cnt <= 0;
 
 	pol <= pos > neg;
-end
-
-endmodule
-
-/////////////////////////////////////////////////////////////////////
-
-module aud_mix_top
-(
-	input             clk,
-
-	input       [4:0] att,
-	input       [1:0] mix,
-	input             is_signed,
-
-	input      [15:0] core_audio,
-	input      [15:0] linux_audio,
-	input      [15:0] pre_in,
-
-	output reg [15:0] pre_out,
-	output reg [15:0] out
-);
-
-reg [15:0] ca;
-always @(posedge clk) begin
-	reg [15:0] d1,d2,d3;
-
-	d1 <= core_audio; d2<=d1; d3<=d2;
-	if(d2 == d3) ca <= d2;
-end
-
-always @(posedge clk) begin
-	reg signed [16:0] a1, a2, a3, a4;
-
-	a1 <= is_signed ? {ca[15],ca} : {2'b00,ca[15:1]};
-	a2 <= a1 + {linux_audio[15],linux_audio};
-
-	pre_out <= a2[16:1];
-
-	case(mix)
-		0: a3 <= a2;
-		1: a3 <= $signed(a2) - $signed(a2[16:3]) + $signed(pre_in[15:2]);
-		2: a3 <= $signed(a2) - $signed(a2[16:2]) + $signed(pre_in[15:1]);
-		3: a3 <= {a2[16],a2[16:1]} + {pre_in[15],pre_in};
-	endcase
-
-	if(att[4]) a4 <= 0;
-	else a4 <= a3 >>> att[3:0];
-
-	//clamping
-	out <= ^a4[16:15] ? {a4[16],{15{a4[15]}}} : a4[15:0];
 end
 
 endmodule
