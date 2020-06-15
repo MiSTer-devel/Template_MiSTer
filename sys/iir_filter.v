@@ -21,6 +21,9 @@
 //
 module IIR_filter
 #(
+	parameter use_params = 1,                     // set to 1 to use following parameters, 0 for input port variables.
+	parameter stereo   =  1,                      // 0 for mono (input_l)
+
 	parameter coeff_x  =  0.00000774701983513660, // Base gain value for X. Float. Range: 0.0 ... 0.999(9)
 	parameter coeff_x0 =  3,                      // Gain scale factor for X0. Integer. Range -7 ... +7
 	parameter coeff_x1 =  3,                      // Gain scale factor for X1. Integer. Range -7 ... +7
@@ -31,24 +34,47 @@ module IIR_filter
 )
 (
 	input         clk,
-	input         ce,                         // must be double of calculated rate!
-	input         sample_ce,                  // desired output sample rate
-	input  [15:0] input_l,  input_r,
-	output [15:0] output_l, output_r
+	input         reset,
+
+	input         ce,        // must be double of calculated rate for stereo!
+	input         sample_ce, // desired output sample rate
+
+	input  [39:0] cx,
+	input   [7:0] cx0,
+	input   [7:0] cx1,
+	input   [7:0] cx2,
+	input  [23:0] cy0,
+	input  [23:0] cy1,
+	input  [23:0] cy2,
+
+	input  [15:0] input_l,  input_r,  // signed samples
+	output [15:0] output_l, output_r  // signed samples
 );
 
-localparam  [39:0] coeff   = coeff_x * 40'h8000000000;
-wire signed [59:0] inp_mul = $signed(inp) * $signed(coeff);
+localparam  [39:0] pcoeff_x  = coeff_x  * 40'h8000000000;
+localparam  [31:0] pcoeff_y0 = coeff_y0 * 24'h200000;
+localparam  [31:0] pcoeff_y1 = coeff_y1 * 24'h200000;
+localparam  [31:0] pcoeff_y2 = coeff_y2 * 24'h200000;
+
+wire [39:0] vcoeff    = use_params ? pcoeff_x        : cx;
+wire [23:0] vcoeff_y0 = use_params ? pcoeff_y0[23:0] : cy0;
+wire [23:0] vcoeff_y1 = use_params ? pcoeff_y1[23:0] : cy1;
+wire [23:0] vcoeff_y2 = use_params ? pcoeff_y2[23:0] : cy2;
+
+wire [59:0] inp_mul = $signed(inp) * $signed(vcoeff);
 
 wire [39:0] x = inp_mul[59:20];
 wire [39:0] y = x + tap0;
 
 wire [39:0] tap0;
-iir_filter_tap #(coeff_x0, coeff_y0) iir_tap_0
+iir_filter_tap iir_tap_0
 (
 	.clk(clk),
+	.reset(reset),
 	.ce(ce),
 	.ch(ch),
+	.cx(use_params ? coeff_x0[7:0] : cx0),
+	.cy(vcoeff_y0),
 	.x(x),
 	.y(y),
 	.z(tap1),
@@ -56,11 +82,14 @@ iir_filter_tap #(coeff_x0, coeff_y0) iir_tap_0
 );
 
 wire [39:0] tap1;
-iir_filter_tap #(coeff_x1, coeff_y1) iir_tap_1
+iir_filter_tap iir_tap_1
 (
 	.clk(clk),
+	.reset(reset),
 	.ce(ce),
 	.ch(ch),
+	.cx(use_params ? coeff_x1[7:0] : cx1),
+	.cy(vcoeff_y1),
 	.x(x),
 	.y(y),
 	.z(tap2),
@@ -68,11 +97,14 @@ iir_filter_tap #(coeff_x1, coeff_y1) iir_tap_1
 );
 
 wire [39:0] tap2;
-iir_filter_tap #(coeff_x2, coeff_y2) iir_tap_2
+iir_filter_tap iir_tap_2
 (
 	.clk(clk),
+	.reset(reset),
 	.ce(ce),
 	.ch(ch),
+	.cx(use_params ? coeff_x2[7:0] : cx2),
+	.cy(vcoeff_y2),
 	.x(x),
 	.y(y),
 	.z(0),
@@ -83,16 +115,24 @@ reg        ch = 0;
 reg [15:0] out_l, out_r, out_m;
 reg [15:0] inp, inp_m;
 always @(posedge clk) if (ce) begin
-	ch <= ~ch;
-	if(ch) begin
-		out_m <= y[35:20];
-		inp   <= inp_m;
+	if(!stereo) begin
+		ch    <= 0;
+		inp   <= input_l;
+		out_l <= y[35:20];
+		out_r <= y[35:20];
 	end
 	else begin
-		out_l <= out_m;
-		out_r <= y[35:20];
-		inp   <= input_l;
-		inp_m <= input_r;
+		ch <= ~ch;
+		if(ch) begin
+			out_m <= y[35:20];
+			inp   <= inp_m;
+		end
+		else begin
+			out_l <= out_m;
+			out_r <= y[35:20];
+			inp   <= input_l;
+			inp_m <= input_r;
+		end
 	end
 end
 
@@ -104,36 +144,40 @@ assign {output_l, output_r} = out;
 endmodule
 
 module iir_filter_tap
-#(
-	parameter coeff_x,
-	parameter coeff_y
-)
 (
 	input         clk,
+	input         reset,
+
 	input         ce,
 	input         ch,
+
+	input   [7:0] cx,
+	input  [23:0] cy,
+
 	input  [39:0] x,
 	input  [39:0] y,
 	input  [39:0] z,
 	output [39:0] tap
 );
 
-localparam  [23:0] coeff = coeff_y * 24'h200000;
-wire signed [60:0] y_mul = $signed(y[36:0]) * $signed(coeff);
+wire signed [60:0] y_mul = $signed(y[36:0]) * $signed(cy);
 
 function [39:0] x_mul;
 	input [39:0] x;
 begin
 	x_mul = 0;
-	if(coeff_x[0])  x_mul =  x_mul + {{4{x[39]}}, x[39:4]};
-	if(coeff_x[1])  x_mul =  x_mul + {{3{x[39]}}, x[39:3]};
-	if(coeff_x[2])  x_mul =  x_mul + {{2{x[39]}}, x[39:2]};
-	if(coeff_x[31]) x_mul = ~x_mul; //cheap NEG
+	if(cx[0]) x_mul =  x_mul + {{4{x[39]}}, x[39:4]};
+	if(cx[1]) x_mul =  x_mul + {{3{x[39]}}, x[39:3]};
+	if(cx[2]) x_mul =  x_mul + {{2{x[39]}}, x[39:2]};
+	if(cx[7]) x_mul = ~x_mul; //cheap NEG
 end
 endfunction
 
 (* ramstyle = "logic" *) reg [39:0] intreg[2];
-always @(posedge clk) if(ce) intreg[ch] <= x_mul(x) - y_mul[60:21] + z;
+always @(posedge clk, posedge reset) begin
+	if(reset) {intreg[0],intreg[1]} <= 80'd0;
+	else if(ce) intreg[ch] <= x_mul(x) - y_mul[60:21] + z;
+end
 
 assign tap = intreg[ch];
 
@@ -144,6 +188,7 @@ module DC_blocker
 (
 	input         clk,
 	input         ce, // 48/96 KHz
+	input         mute,
 
 	input         sample_rate,
 	input  [15:0] din,
@@ -155,12 +200,18 @@ wire [39:0] x0 = x - (sample_rate ? {{11{x[39]}}, x[39:11]} : {{10{x[39]}}, x[39
 wire [39:0] y1 = y - (sample_rate ? {{10{y[39]}}, y[39:10]} : {{09{y[39]}}, y[39:09]});
 wire [39:0] y0 = x0 - x1 + y1;
 
+reg         mute_r = 1;
 reg  [39:0] x1, y;
+reg  [15:0] out;
 always @(posedge clk) if(ce) begin
 	x1 <= x0;
 	y  <= ^y0[39:38] ? {{2{y0[39]}},{38{y0[38]}}} : y0;
+	
+	out <= y[38:23];
+	if(mute) mute_r <= 1;
+	else if(!out) mute_r <= 0;
 end
 
-assign dout = y[38:23];
+assign dout = mute ? 16'd0 : out;
 
 endmodule

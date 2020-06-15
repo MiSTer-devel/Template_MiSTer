@@ -320,12 +320,25 @@ reg        vs_wait = 0;
 reg [11:0] vs_line = 0;
 
 reg        scaler_out = 0;
+
+
+reg [31:0] aflt_rate = 7056000;
+reg [39:0] acx  = 4258969;
+reg  [7:0] acx0 = 3;
+reg  [7:0] acx1 = 3;
+reg  [7:0] acx2 = 1;
+reg [23:0] acy0 = -24'd6216759;
+reg [23:0] acy1 =  24'd6143386;
+reg [23:0] acy2 = -24'd2023767;
+reg        areset = 0;
+
 always@(posedge clk_sys) begin
 	reg  [7:0] cmd;
 	reg        has_cmd;
 	reg        old_strobe;
 	reg  [7:0] cnt = 0;
 	reg        vs_d0,vs_d1,vs_d2;
+	reg  [4:0] acx_att;
 
 	old_strobe <= io_strobe;
 	coef_wr <= 0;
@@ -333,6 +346,9 @@ always@(posedge clk_sys) begin
 	if(~io_uio) begin
 		has_cmd <= 0;
 		cmd <= 0;
+		areset <= 0;
+		acx_att <= 0;
+		acx <= acx >> acx_att;
 	end
 	else
 	if(~old_strobe & io_strobe) begin
@@ -341,6 +357,17 @@ always@(posedge clk_sys) begin
 			cmd <= io_din[7:0];
 			cnt <= 0;
 			if(io_din[7:0] == 'h30) vs_wait <= 1;
+			if(io_din[7:0] == 'h39) begin
+				aflt_rate <= 7056000;
+				acx  <= 4258969;
+				acx0 <= 3;
+				acx1 <= 3;
+				acx2 <= 1;
+				acy0 <= -24'd6216759;
+				acy1 <=  24'd6143386;
+				acy2 <= -24'd2023767;
+				areset <= 1;
+			end
 		end
 		else begin
 			if(cmd == 1) begin
@@ -402,6 +429,26 @@ always@(posedge clk_sys) begin
 			if(cmd == 'h2B) scaler_flt <= io_din[2:0];
 			if(cmd == 'h37) {FREESCALE,HSET} <= {io_din[15],io_din[11:0]};
 			if(cmd == 'h38) vs_line <= io_din[11:0];
+			if(cmd == 'h39) begin
+				cnt <= cnt + 1'd1;
+				case(cnt[3:0])
+					 0: acx_att          <= io_din[4:0];
+					 1: aflt_rate[15:0]  <= io_din;
+					 2: aflt_rate[31:16] <= io_din;
+					 3: acx[15:0]        <= io_din;
+					 4: acx[31:16]       <= io_din;
+					 5: acx[39:32]       <= io_din[7:0];
+					 6: acx0             <= io_din[7:0];
+					 7: acx1             <= io_din[7:0];
+					 8: acx2             <= io_din[7:0];
+					 9: acy0[15:0]       <= io_din;
+					10: acy0[23:16]      <= io_din[7:0];
+					11: acy1[15:0]       <= io_din;
+					12: acy1[23:16]      <= io_din[7:0];
+					13: acy2[15:0]       <= io_din;
+					14: acy2[23:16]      <= io_din[7:0];
+				endcase
+			end
 		end
 	end
 
@@ -1132,12 +1179,21 @@ pll_audio pll_audio
 wire spdif;
 audio_out audio_out
 (
-	.reset(reset),
+	.reset(reset | areset),
 	.clk(clk_audio),
 
 	.att(vol_att),
 	.mix(audio_mix),
 	.sample_rate(audio_96k),
+
+	.flt_rate(aflt_rate),
+	.cx(acx),
+	.cx0(acx0),
+	.cx1(acx1),
+	.cx2(acx2),
+	.cy0(acy0),
+	.cy1(acy1),
+	.cy2(acy2),
 
 	.is_signed(audio_s),
 	.core_l(audio_l),
