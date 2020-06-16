@@ -24,6 +24,13 @@
 	`define USE_SDRAM
 `endif
 
+`ifndef USE_DDRAM
+	`ifdef USE_FB
+		`define USE_DDRAM
+	`endif
+`endif
+
+
 module sys_top
 (
 	/////////// CLOCK //////////
@@ -321,7 +328,6 @@ reg [11:0] vs_line = 0;
 
 reg        scaler_out = 0;
 
-
 reg [31:0] aflt_rate = 7056000;
 reg [39:0] acx  = 4258969;
 reg  [7:0] acx0 = 3;
@@ -411,15 +417,15 @@ always@(posedge clk_sys) begin
 			if(cmd == 'h2F) begin
 				cnt <= cnt + 1'd1;
 				case(cnt[3:0])
-					0: {FB_EN,FB_FLT,FB_FMT} <= {io_din[15], io_din[14], io_din[5:0]};
-					1: FB_BASE[15:0]  <= io_din[15:0];
-					2: FB_BASE[31:16] <= io_din[15:0];
-					3: FB_WIDTH       <= io_din[11:0];
-					4: FB_HEIGHT      <= io_din[11:0];
-					5: FB_HMIN        <= io_din[11:0];
-					6: FB_HMAX        <= io_din[11:0];
-					7: FB_VMIN        <= io_din[11:0];
-					8: FB_VMAX        <= io_din[11:0];
+					0: {LFB_EN,LFB_FLT,LFB_FMT} <= {io_din[15], io_din[14], io_din[5:0]};
+					1: LFB_BASE[15:0]  <= io_din[15:0];
+					2: LFB_BASE[31:16] <= io_din[15:0];
+					3: LFB_WIDTH       <= io_din[11:0];
+					4: LFB_HEIGHT      <= io_din[11:0];
+					5: LFB_HMIN        <= io_din[11:0];
+					6: LFB_HMAX        <= io_din[11:0];
+					7: LFB_VMIN        <= io_din[11:0];
+					8: LFB_VMAX        <= io_din[11:0];
 				endcase
 			end
 			if(cmd == 'h25) {led_overtake, led_state} <= io_din;
@@ -619,7 +625,7 @@ wire  [15:0] vbuf_byteenable;
 wire         vbuf_write;
 
 wire  [23:0] hdmi_data;
-wire         hdmi_vs, hdmi_hs, hdmi_de;
+wire         hdmi_vs, hdmi_hs, hdmi_de, hdmi_vbl;
 
 `ifndef DEBUG_NOHDMI
 wire clk_hdmi  = hdmi_clk_out;
@@ -659,6 +665,7 @@ ascal
 	.o_hs     (hdmi_hs),
 	.o_vs     (hdmi_vs),
 	.o_de     (hdmi_de),
+	.o_vbl    (hdmi_vbl),
 	.o_lltune (lltune),
 	.htotal   (WIDTH + HFP + HBP + HS),
 	.hsstart  (WIDTH + HFP),
@@ -673,7 +680,7 @@ ascal
 	.vmin     (vmin),
 	.vmax     (vmax),
 
-	.mode     ({~lowlat,FB_EN ? FB_FLT : |scaler_flt,2'b00}),
+	.mode     ({~lowlat,LFB_EN ? LFB_FLT : |scaler_flt,2'b00}),
 	.poly_clk (clk_sys),
 	.poly_a   (coef_addr),
 	.poly_dw  (coef_data),
@@ -703,16 +710,43 @@ ascal
 );
 `endif
 
+reg        LFB_EN     = 0;
+reg        LFB_FLT    = 0;
+reg  [5:0] LFB_FMT    = 0;
+reg [11:0] LFB_WIDTH  = 0;
+reg [11:0] LFB_HEIGHT = 0;
+reg [11:0] LFB_HMIN   = 0;
+reg [11:0] LFB_HMAX   = 0;
+reg [11:0] LFB_VMIN   = 0;
+reg [11:0] LFB_VMAX   = 0;
+reg [31:0] LFB_BASE   = 0;
+
 reg        FB_EN     = 0;
-reg        FB_FLT    = 0;
 reg  [5:0] FB_FMT    = 0;
 reg [11:0] FB_WIDTH  = 0;
 reg [11:0] FB_HEIGHT = 0;
-reg [11:0] FB_HMIN   = 0;
-reg [11:0] FB_HMAX   = 0;
-reg [11:0] FB_VMIN   = 0;
-reg [11:0] FB_VMAX   = 0;
 reg [31:0] FB_BASE   = 0;
+
+always @(posedge clk_sys) begin
+	FB_EN <= LFB_EN | fb_en;
+	if(LFB_EN) begin
+		FB_FMT    <= LFB_FMT;
+		FB_WIDTH  <= LFB_WIDTH;
+		FB_HEIGHT <= LFB_HEIGHT;
+		FB_BASE   <= LFB_BASE;
+	end
+	else begin
+		FB_FMT    <= fb_fmt;
+		FB_WIDTH  <= fb_width;
+		FB_HEIGHT <= fb_height;
+		FB_BASE   <= fb_base;
+	end
+end
+
+`ifdef USE_FB
+reg fb_vbl;
+always @(posedge clk_vid) fb_vbl <= hdmi_vbl;
+`endif
 
 reg [11:0] hmin;
 reg [11:0] hmax;
@@ -733,11 +767,11 @@ always @(posedge clk_vid) begin
 
 	state <= state + 1'd1;
 	case(state)
-		0: if(FB_EN) begin
-				hmin <= FB_HMIN;
-				vmin <= FB_VMIN;
-				hmax <= FB_HMAX;
-				vmax <= FB_VMAX;
+		0: if(LFB_EN) begin
+				hmin <= LFB_HMIN;
+				vmin <= LFB_VMIN;
+				hmax <= LFB_HMAX;
+				vmax <= LFB_VMAX;
 				state<= 0;
 			end
 			else if(ARX && ARY && !FREESCALE) begin
@@ -1298,24 +1332,20 @@ wire  [6:0] user_out, user_in;
 assign {SDRAM_DQ, SDRAM_A, SDRAM_BA, SDRAM_CLK, SDRAM_CKE, SDRAM_DQML, SDRAM_DQMH, SDRAM_nWE, SDRAM_nCAS, SDRAM_nRAS, SDRAM_nCS} = {39'bZ};
 `endif
 
-`ifdef ARCADE_SYS
-	wire hvs_emu, hhs_emu;
-	sync_fix hdmi_sync_v(clk_ihdmi, hvs_emu, hvs_fix);
-	sync_fix hdmi_sync_h(clk_ihdmi, hhs_emu, hhs_fix);
+assign clk_ihdmi= clk_vid;
+assign ce_hpix  = ce_pix;
+assign hr_out   = r_out;
+assign hg_out   = g_out;
+assign hb_out   = b_out;
+assign hhs_fix  = hs_fix;
+assign hvs_fix  = vs_fix;
+assign hde_emu  = de_emu;
 
+`ifdef ARCADE_SYS
 	assign audio_mix = 0;
 	assign {ADC_SCK, ADC_SDI, ADC_CONVST} = 0;
 	assign btn = 0;
 `else
-	assign clk_ihdmi= clk_vid;
-	assign ce_hpix  = ce_pix;
-	assign hr_out   = r_out;
-	assign hg_out   = g_out;
-	assign hb_out   = b_out;
-	assign hhs_fix  = hs_fix;
-	assign hvs_fix  = vs_fix;
-	assign hde_emu  = de_emu;
-
 	wire uart_dtr;
 	wire uart_dsr;
 	wire uart_cts;
@@ -1325,6 +1355,19 @@ assign {SDRAM_DQ, SDRAM_A, SDRAM_BA, SDRAM_CLK, SDRAM_CKE, SDRAM_DQML, SDRAM_DQM
 	wire osd_status;
 `endif
 
+wire        fb_en;
+wire  [4:0] fb_fmt;
+wire [11:0] fb_width;
+wire [11:0] fb_height;
+wire [31:0] fb_base;
+
+`ifndef USE_FB
+	assign fb_en = 0;
+	assign fb_fmt = 0;
+	assign fb_width = 0;
+	assign fb_height = 0;
+	assign fb_base = 0;
+`endif
 
 emu emu
 (
@@ -1340,29 +1383,20 @@ emu emu
 	.VGA_DE(de_emu),
 	.VGA_F1(f1),
 
-`ifdef ARCADE_SYS
-	.VGA_CLK(clk_vid),
-	.VGA_CE(ce_pix),
-	.HDMI_CLK(clk_ihdmi),
-	.HDMI_CE(ce_hpix),
-	.HDMI_R(hr_out),
-	.HDMI_G(hg_out),
-	.HDMI_B(hb_out),
-	.HDMI_HS(hhs_emu),
-	.HDMI_VS(hvs_emu),
-	.HDMI_DE(hde_emu),
-	.HDMI_SL(scanlines),
-	.HDMI_ARX(ARX),
-	.HDMI_ARY(ARY),
-`else
 	.CLK_VIDEO(clk_vid),
 	.CE_PIXEL(ce_pix),
 	.VGA_SL(scanlines),
 	.VIDEO_ARX(ARX),
 	.VIDEO_ARY(ARY),
 
-	.AUDIO_MIX(audio_mix),
-	.ADC_BUS({ADC_SCK,ADC_SDO,ADC_SDI,ADC_CONVST}),
+`ifdef USE_FB
+	.FB_EN(fb_en),
+	.FB_FORMAT(fb_fmt),
+	.FB_WIDTH(fb_width),
+	.FB_HEIGHT(fb_height),
+	.FB_BASE(fb_base),
+	.FB_VBL(fb_vbl),
+	.FB_LL(lowlat),
 `endif
 
 	.LED_USER(led_user),
@@ -1373,6 +1407,11 @@ emu emu
 	.AUDIO_L(audio_l),
 	.AUDIO_R(audio_r),
 	.AUDIO_S(audio_s),
+
+`ifndef ARCADE_SYS
+	.AUDIO_MIX(audio_mix),
+	.ADC_BUS({ADC_SCK,ADC_SDO,ADC_SDI,ADC_CONVST}),
+`endif
 
 `ifdef USE_DDRAM
 	.DDRAM_CLK(ram_clk),
