@@ -55,12 +55,14 @@ module emu
 	//    [3]   : 0=16bits 565 1=16bits 1555
 	//    [4]   : 0=RGB  1=BGR (for 16/24/32 modes)
 	//
-	// stride is modulo 256 of bytes
+	// FB_STRIDE either 0 (rounded to 256 bytes) or multiple of 16 bytes.
+
 	output        FB_EN,
 	output  [4:0] FB_FORMAT,
 	output [11:0] FB_WIDTH,
 	output [11:0] FB_HEIGHT,
 	output [31:0] FB_BASE,
+	output [13:0] FB_STRIDE,
 	input         FB_VBL,
 	input         FB_LL,
 	*/

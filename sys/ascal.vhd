@@ -162,6 +162,7 @@ ENTITY ascal IS
     o_fb_vsize  : IN natural RANGE 0 TO 4095 :=0;
     o_fb_format : IN unsigned(5 DOWNTO 0) :="000100";
     o_fb_base   : IN unsigned(31 DOWNTO 0) :=x"0000_0000";
+    o_fb_stride : IN unsigned(13 DOWNTO 0) :=(OTHERS =>'0'); -- must be multiple of data bus width in bytes (8 or 16)
 
     -- Framebuffer palette in 8bpp mode
     pal_clk : IN std_logic :='0';
@@ -407,7 +408,8 @@ ARCHITECTURE rtl OF ascal IS
   SIGNAL o_readdataack,o_readdataack_sync,o_readdataack_sync2 : std_logic;
   SIGNAL o_copyv : unsigned(0 TO 8);
   SIGNAL o_adrs : unsigned(31 DOWNTO 0); -- Avalon address
-  SIGNAL o_adrs_pre : natural RANGE 0 TO 32*4096-1;
+  SIGNAL o_adrs_pre : natural RANGE 0 TO 8388607;
+  SIGNAL o_stride : unsigned(13 DOWNTO 0);
   SIGNAL o_adrsa,o_rline : std_logic;
   SIGNAL o_ad,o_ad1,o_ad2,o_ad3 : natural RANGE 0 TO 2*BLEN-1;
   SIGNAL o_adturn : std_logic;
@@ -1718,6 +1720,14 @@ BEGIN
       o_ihsize_temp <= o_ihsize * to_integer(o_format(2 DOWNTO 0) - 2);
       o_ihsize_temp2 <= (o_ihsize_temp + N_BURST - 1);
       o_hburst <= o_ihsize_temp2 / N_BURST;
+
+      IF o_fb_ena='1' and o_fb_stride /= 0 THEN
+        o_stride<=o_fb_stride;
+        o_stride(NB_LA-1 downto 0)<=(OTHERS=>'0');
+      ELSE
+        o_stride <= to_unsigned(o_ihsize_temp2,14);
+        o_stride(NB_BURST-1 DOWNTO 0) <= (OTHERS =>'0');
+      END IF;
       
       IF o_vsv(1)='1' AND o_vsv(0)='0' AND o_bufup0='1' THEN
         o_obuf0<=buf_next(o_obuf0,o_ibuf0);
@@ -1856,17 +1866,17 @@ BEGIN
       
       o_read<=o_read_pre AND o_run;
       
-      o_adrs_pre<=to_integer(o_vacpt) * o_hburst;
+      o_adrs_pre<=to_integer(o_vacpt) * to_integer(o_stride);
       o_rline<=o_vacpt(0); -- Even/Odd line for interlaced video
       IF o_adrsa='1' THEN
         IF o_fload=2 THEN
           o_adrs<=to_unsigned(o_hbcpt * N_BURST,32);
           o_alt<="1111";
         ELSIF o_fload=1 THEN
-          o_adrs<=to_unsigned((o_hburst + o_hbcpt) * N_BURST,32);
+          o_adrs<=to_unsigned(o_hbcpt * N_BURST,32) + o_stride;
           o_alt<="0100";
         ELSE
-          o_adrs<=to_unsigned((o_adrs_pre + o_hbcpt) * N_BURST,32);
+          o_adrs<=to_unsigned(o_adrs_pre + (o_hbcpt * N_BURST),32);
           o_alt<=altx(o_vacpt(1 DOWNTO 0) + 1);
         END IF;
       END IF;

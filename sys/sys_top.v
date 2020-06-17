@@ -696,6 +696,7 @@ ascal
 	.o_fb_vsize       (FB_HEIGHT),
 	.o_fb_format      (FB_FMT),
 	.o_fb_base        (FB_BASE),
+	.o_fb_stride      (FB_STRIDE),
 
 	.avl_clk          (clk_100m),
 	.avl_waitrequest  (vbuf_waitrequest),
@@ -726,6 +727,7 @@ reg  [5:0] FB_FMT    = 0;
 reg [11:0] FB_WIDTH  = 0;
 reg [11:0] FB_HEIGHT = 0;
 reg [31:0] FB_BASE   = 0;
+reg [13:0] FB_STRIDE = 0;
 
 always @(posedge clk_sys) begin
 	FB_EN <= LFB_EN | fb_en;
@@ -734,12 +736,14 @@ always @(posedge clk_sys) begin
 		FB_WIDTH  <= LFB_WIDTH;
 		FB_HEIGHT <= LFB_HEIGHT;
 		FB_BASE   <= LFB_BASE;
+		FB_STRIDE <= 0;
 	end
 	else begin
 		FB_FMT    <= fb_fmt;
 		FB_WIDTH  <= fb_width;
 		FB_HEIGHT <= fb_height;
 		FB_BASE   <= fb_base;
+		FB_STRIDE <= fb_stride;
 	end
 end
 
@@ -1360,6 +1364,7 @@ wire  [4:0] fb_fmt;
 wire [11:0] fb_width;
 wire [11:0] fb_height;
 wire [31:0] fb_base;
+wire [13:0] fb_stride;
 
 `ifndef USE_FB
 	assign fb_en = 0;
@@ -1367,6 +1372,7 @@ wire [31:0] fb_base;
 	assign fb_width = 0;
 	assign fb_height = 0;
 	assign fb_base = 0;
+	assign fb_stride = 0;
 `endif
 
 emu emu
@@ -1395,6 +1401,7 @@ emu emu
 	.FB_WIDTH(fb_width),
 	.FB_HEIGHT(fb_height),
 	.FB_BASE(fb_base),
+	.FB_STRIDE(fb_stride),
 	.FB_VBL(fb_vbl),
 	.FB_LL(lowlat),
 `endif
