@@ -3,7 +3,7 @@
 ## General description
 This core contains the latest version of framework and will be updated when framework is updated. There will be no releases. This core is only for developers. Besides the framework, core demonstrates the basic usage. New or ported cores should use it as a template.
 
-It's highly recommended to follow the notes to keep it standartized for easier maintanance and collaboration with other developers.
+It's highly recommended to follow the notes to keep it standardized for easier maintenance and collaboration with other developers.
 
 ## Source structure
 
@@ -12,7 +12,7 @@ It's highly recommended to follow the notes to keep it standartized for easier m
 
 ### Standard MiSTer core should have following folders:
 * `sys` - the framework. Basically it's prohibited to change any files in this folder. Framework updates may erase any customization in this folder. All MiSTer cores have to include sys folder as is from this core.
-* `rtl` - the actual source of core. It's up to developer how to organize the inner structure of this folder. Exception is pll folder/files (see below).
+* `rtl` - the actual source of core. It's up to the developer how to organize the inner structure of this folder. Exception is pll folder/files (see below).
 * `releases` - the folder where rbf files should be placed. format of each rbf is: <core_name>_YYMMDD.rbf YYMMDD is date code of release.
 
 ### Other standard files:
