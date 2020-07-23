@@ -35,13 +35,12 @@ The following macros can be defined and will affect the framework features:
 
 Macro          |   Effect
 ---------------|---------------------------------
-OSD_HEADER     |
 ARCADE_SYS     | Disables the UART and OSD status
-DEBUG_NOHDMI   | Disable HDMI-related modules. Speeds up compilation but only analogue video is available
+DEBUG_NOHDMI   | Disable HDMI-related modules. Speeds up compilation but only analogue/direct video is available
 DUAL_SDRAM     | Changes configuration of FPGA pins to work with dual SDRAM I/O boards
 USE_DDRAM      | Enables DDRAM ports of emu instance
 USE_SDRAM      | Enables SDRAM ports of emu instance
-USE_FB         |
+USE_FB         | Allows to use framebuffer from the core
 
 
 # Quartus version
