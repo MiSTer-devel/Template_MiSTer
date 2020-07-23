@@ -29,6 +29,21 @@ It's highly recommended to follow the notes to keep it standardized for easier m
 ### PLL:
 Framework implies use of at least one PLL in the core. Framework doesn't comtain this PLL but requires it to be placed in `rtl` folder, so `pll` folder and `pll.v`, `pll.qip` files must be present, however PLL settings are up to the core.
 
+### Verilog Macros
+
+The following macros can be defined and will affect the framework features:
+
+Macro          |   Effect
+---------------|---------------------------------
+OSD_HEADER     |
+ARCADE_SYS     | Disables the UART and OSD status
+DEBUG_NOHDMI   | Disable HDMI-related modules. Speeds up compilation but only analogue video is available
+DUAL_SDRAM     | Changes configuration of FPGA pins to work with dual SDRAM I/O boards
+USE_DDRAM      | Enables DDRAM ports of emu instance
+USE_SDRAM      | Enables SDRAM ports of emu instance
+USE_FB         |
+
+
 # Quartus version
 Cores must be developed in **Quartus v17.0.x**. It's recommended to have updates, so it will be **v17.0.2**. Newer versions won't give any benefits to FPGA used in MiSTer, howver they will introduce incompatibilities in project settings and it will make harder to maintain the core and collaborate with others. **So please stick to good old 17.0.x version.** You may use either Lite or Standard license.
 
