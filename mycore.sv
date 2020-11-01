@@ -36,8 +36,8 @@ module emu
 	output        CE_PIXEL,
 
 	//Video aspect ratio for HDMI. Most retro systems have ratio 4:3.
-	output  [7:0] VIDEO_ARX,
-	output  [7:0] VIDEO_ARY,
+	output [11:0] VIDEO_ARX,
+	output [11:0] VIDEO_ARY,
 
 	output  [7:0] VGA_R,
 	output  [7:0] VGA_G,
@@ -171,14 +171,16 @@ assign BUTTONS = 0;
 
 //////////////////////////////////////////////////////////////////
 
-assign VIDEO_ARX = status[1] ? 8'd16 : 8'd4;
-assign VIDEO_ARY = status[1] ? 8'd9  : 8'd3; 
+wire [1:0] ar = status[9:8];
+
+assign VIDEO_ARX = (!ar) ? 12'd4 : (ar - 1'd1);
+assign VIDEO_ARY = (!ar) ? 12'd3 : 12'd0;
 
 `include "build_id.v" 
 localparam CONF_STR = {
 	"MyCore;;",
 	"-;",
-	"O1,Aspect ratio,4:3,16:9;",
+	"O89,Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
 	"O2,TV Mode,NTSC,PAL;",
 	"O34,Noise,White,Red,Green,Blue;",
 	"-;",
@@ -224,7 +226,6 @@ hps_io #(.STRLEN($size(CONF_STR)>>3)) hps_io
 	
 	.ps2_key(ps2_key)
 );
-
 
 ///////////////////////   CLOCKS   ///////////////////////////////
 
