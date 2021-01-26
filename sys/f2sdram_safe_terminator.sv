@@ -99,24 +99,24 @@ module f2sdram_safe_terminator #(
   wire burst_start = state == IDLE  && (next_state == READ || next_state == WRITE);
   wire read_data   = state == READ  && readdatavalid_master;
   wire write_data  = state == WRITE && !waitrequest_master;
-  wire burst_end   = (state == READ || state == WRITE) && burstcounter == burstcount_latch - 'd1;
-  wire successful_non_burst_write = state == IDLE && write_slave && burstcount_slave == 'd1 && !waitrequest_master; 
+  wire burst_end   = (state == READ || state == WRITE) && burstcounter == burstcount_latch - 1'd1;
+  wire successful_non_burst_write = state == IDLE && write_slave && burstcount_slave == 1 && !waitrequest_master; 
 
-  reg [BURSTCOUNT_WIDTH-1:0] burstcounter       = 'd0;
-  reg [BURSTCOUNT_WIDTH-1:0] burstcount_latch   = 'd0;
-  reg [ADDRESS_WITDH-1:0]    address_latch      = 'd0;
-  reg [BYTEENABLE_WIDTH-1:0] byteenable_latch   = 'd0;
-  reg read_latch  = 1'b0;
-  reg write_latch = 1'b0;
+  reg [BURSTCOUNT_WIDTH-1:0] burstcounter       = 0;
+  reg [BURSTCOUNT_WIDTH-1:0] burstcount_latch   = 0;
+  reg [ADDRESS_WITDH-1:0]    address_latch      = 0;
+  reg [BYTEENABLE_WIDTH-1:0] byteenable_latch   = 0;
+  reg read_latch  = 0;
+  reg write_latch = 0;
 
   always_ff @(posedge clk) begin
     state <= next_state;
 
     if (burst_start) begin
       if (next_state == WRITE) begin
-        burstcounter <= waitrequest_master ? 'd0 :'d1;
+        burstcounter <= waitrequest_master ? 1'd0 : 1'd1;
       end else if (next_state == READ) begin
-        burstcounter <= 'd0;
+        burstcounter <= 0;
       end
 
       burstcount_latch <= burstcount_slave;
@@ -126,7 +126,7 @@ module f2sdram_safe_terminator #(
       write_latch      <= next_state == WRITE;
 
     end else if (read_data || write_data) begin
-      burstcounter <= burstcounter + 'd1;
+      burstcounter <= burstcounter + 1'd1;
 
     end else if (burst_end) begin
       read_latch  <= 1'b0;
@@ -163,17 +163,17 @@ module f2sdram_safe_terminator #(
    * Safe terminating
    */
   wire on_transaction = (state == READ || state == WRITE) && (next_state != IDLE);
-  reg terminating = 1'b0;
-  reg terminated = 1'b0;
+  reg terminating = 0;
+  reg terminated  = 0;
 
-  reg [BURSTCOUNT_WIDTH-1:0] terminate_counter = 'd0;
-  reg [BURSTCOUNT_WIDTH-1:0] terminate_count = 'd0;
-  reg [ADDRESS_WITDH-1:0]    terminate_address_latch      = 'd0;
-  reg [BYTEENABLE_WIDTH-1:0] terminate_byteenable_latch   = 'd0;
-  reg terminate_read_latch  = 1'b0;
-  reg terminate_write_latch = 1'b0;
+  reg [BURSTCOUNT_WIDTH-1:0] terminate_counter = 0;
+  reg [BURSTCOUNT_WIDTH-1:0] terminate_count   = 0;
+  reg [ADDRESS_WITDH-1:0]    terminate_address_latch    = 0;
+  reg [BYTEENABLE_WIDTH-1:0] terminate_byteenable_latch = 0;
+  reg terminate_read_latch  = 0;
+  reg terminate_write_latch = 0;
 
-  reg init_reset_deasserted = 1'b0;
+  reg init_reset_deasserted = 0;
 
   always_ff @(posedge clk) begin
     if (rst_req_sync) begin
@@ -181,7 +181,7 @@ module f2sdram_safe_terminator #(
       if (init_reset_deasserted) begin
         if (on_transaction) begin
           terminating <= 1'b1;
-          terminate_counter          <= burstcounter + 'd1;
+          terminate_counter          <= burstcounter + 1'd1;
           terminate_count            <= burstcount_latch;
           terminate_address_latch    <= address_latch;
           terminate_byteenable_latch <= byteenable_latch;
@@ -203,14 +203,14 @@ module f2sdram_safe_terminator #(
       // Continue read/write transaction until the end
 
       if (terminate_read_latch && readdatavalid_master) begin
-        terminate_counter <= terminate_counter + 'd1;
+        terminate_counter <= terminate_counter + 1'd1;
       end else if (terminate_write_latch && !waitrequest_master) begin
-        terminate_counter <= terminate_counter + 'd1;
+        terminate_counter <= terminate_counter + 1'd1;
       end
 
-      if (terminate_counter == terminate_count - 'd1) begin
+      if (terminate_counter == terminate_count - 1'd1) begin
         terminating <= 1'b0;
-        terminated <= 1'b1;
+        terminated  <= 1'b1;
       end
     end
   end
@@ -220,17 +220,17 @@ module f2sdram_safe_terminator #(
    */
   always_comb begin
     if (terminated) begin
-      burstcount_master = 'd1;
-      address_master    = 'd0;
-      read_master       = 'b0;
-      writedata_master  = 'd0;
-      byteenable_master = 'd0;
-      write_master      = 'b0;
+      burstcount_master = 1;
+      address_master    = 0;
+      read_master       = 0;
+      writedata_master  = 0;
+      byteenable_master = 0;
+      write_master      = 0;
     end else if (terminating) begin
       burstcount_master = burstcount_latch;
       address_master    = terminate_address_latch;
       read_master       = read_latch;
-      writedata_master  = 'd0;
+      writedata_master  = 0;
       byteenable_master = terminate_byteenable_latch;
       write_master      = write_latch;
     end else begin

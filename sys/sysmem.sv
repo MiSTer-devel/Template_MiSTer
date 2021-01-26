@@ -60,38 +60,38 @@ wire         f2h_ram1_write;
 (* altera_attribute = {"-name SYNCHRONIZER_IDENTIFICATION FORCED_IF_ASYNCHRONOUS"} *) reg ram1_reset_0 = 1'b1;
 (* altera_attribute = {"-name SYNCHRONIZER_IDENTIFICATION FORCED_IF_ASYNCHRONOUS"} *) reg ram1_reset_1 = 1'b1;
 always @(posedge ram1_clk) begin
-  ram1_reset_0 <= reset_out;
-  ram1_reset_1 <= ram1_reset_0;
+	ram1_reset_0 <= reset_out;
+	ram1_reset_1 <= ram1_reset_0;
 end
 
 f2sdram_safe_terminator #(
-  .ADDRESS_WITDH(29),
-  .DATA_WIDTH(64),
-  .BURSTCOUNT_WIDTH(8),
-  .BYTEENABLE_WIDTH(8)
+	.ADDRESS_WITDH(29),
+	.DATA_WIDTH(64),
+	.BURSTCOUNT_WIDTH(8),
+	.BYTEENABLE_WIDTH(8)
 ) f2sdram_safe_terminator_ram1 (
-  .clk                      (ram1_clk),
-  .rst_req_sync             (ram1_reset_1),
+	.clk                      (ram1_clk),
+	.rst_req_sync             (ram1_reset_1),
 
 	.waitrequest_slave        (ram1_waitrequest),
-  .burstcount_slave         (ram1_burstcount),
-  .address_slave            (ram1_address),
-  .readdata_slave           (ram1_readdata),
-  .readdatavalid_slave      (ram1_readdatavalid),
-  .read_slave               (ram1_read),
-  .writedata_slave          (ram1_writedata),
-  .byteenable_slave         (ram1_byteenable),
-  .write_slave              (ram1_write),
+	.burstcount_slave         (ram1_burstcount),
+	.address_slave            (ram1_address),
+	.readdata_slave           (ram1_readdata),
+	.readdatavalid_slave      (ram1_readdatavalid),
+	.read_slave               (ram1_read),
+	.writedata_slave          (ram1_writedata),
+	.byteenable_slave         (ram1_byteenable),
+	.write_slave              (ram1_write),
 
-  .waitrequest_master       (f2h_ram1_waitrequest),
-  .burstcount_master        (f2h_ram1_burstcount),
-  .address_master           (f2h_ram1_address),
-  .readdata_master          (f2h_ram1_readdata),
-  .readdatavalid_master     (f2h_ram1_readdatavalid),
-  .read_master              (f2h_ram1_read),
-  .writedata_master         (f2h_ram1_writedata),
-  .byteenable_master        (f2h_ram1_byteenable),
-  .write_master             (f2h_ram1_write)
+	.waitrequest_master       (f2h_ram1_waitrequest),
+	.burstcount_master        (f2h_ram1_burstcount),
+	.address_master           (f2h_ram1_address),
+	.readdata_master          (f2h_ram1_readdata),
+	.readdatavalid_master     (f2h_ram1_readdatavalid),
+	.read_master              (f2h_ram1_read),
+	.writedata_master         (f2h_ram1_writedata),
+	.byteenable_master        (f2h_ram1_byteenable),
+	.write_master             (f2h_ram1_write)
 );
 
 ////////////////////////////////////////////////////////
@@ -110,38 +110,38 @@ wire         f2h_ram2_write;
 (* altera_attribute = {"-name SYNCHRONIZER_IDENTIFICATION FORCED_IF_ASYNCHRONOUS"} *) reg ram2_reset_0 = 1'b1;
 (* altera_attribute = {"-name SYNCHRONIZER_IDENTIFICATION FORCED_IF_ASYNCHRONOUS"} *) reg ram2_reset_1 = 1'b1;
 always @(posedge ram2_clk) begin
-  ram2_reset_0 <= reset_out;
-  ram2_reset_1 <= ram2_reset_0;
+	ram2_reset_0 <= reset_out;
+	ram2_reset_1 <= ram2_reset_0;
 end
 
 f2sdram_safe_terminator #(
-  .ADDRESS_WITDH(29),
-  .DATA_WIDTH(64),
-  .BURSTCOUNT_WIDTH(8),
-  .BYTEENABLE_WIDTH(8)
+	.ADDRESS_WITDH(29),
+	.DATA_WIDTH(64),
+	.BURSTCOUNT_WIDTH(8),
+	.BYTEENABLE_WIDTH(8)
 ) f2sdram_safe_terminator_ram2 (
-  .clk                      (ram2_clk),
-  .rst_req_sync             (ram2_reset_1),
+	.clk                      (ram2_clk),
+	.rst_req_sync             (ram2_reset_1),
 
 	.waitrequest_slave        (ram2_waitrequest),
-  .burstcount_slave         (ram2_burstcount),
-  .address_slave            (ram2_address),
-  .readdata_slave           (ram2_readdata),
-  .readdatavalid_slave      (ram2_readdatavalid),
-  .read_slave               (ram2_read),
-  .writedata_slave          (ram2_writedata),
-  .byteenable_slave         (ram2_byteenable),
-  .write_slave              (ram2_write),
+	.burstcount_slave         (ram2_burstcount),
+	.address_slave            (ram2_address),
+	.readdata_slave           (ram2_readdata),
+	.readdatavalid_slave      (ram2_readdatavalid),
+	.read_slave               (ram2_read),
+	.writedata_slave          (ram2_writedata),
+	.byteenable_slave         (ram2_byteenable),
+	.write_slave              (ram2_write),
 
-  .waitrequest_master       (f2h_ram2_waitrequest),
-  .burstcount_master        (f2h_ram2_burstcount),
-  .address_master           (f2h_ram2_address),
-  .readdata_master          (f2h_ram2_readdata),
-  .readdatavalid_master     (f2h_ram2_readdatavalid),
-  .read_master              (f2h_ram2_read),
-  .writedata_master         (f2h_ram2_writedata),
-  .byteenable_master        (f2h_ram2_byteenable),
-  .write_master             (f2h_ram2_write)
+	.waitrequest_master       (f2h_ram2_waitrequest),
+	.burstcount_master        (f2h_ram2_burstcount),
+	.address_master           (f2h_ram2_address),
+	.readdata_master          (f2h_ram2_readdata),
+	.readdatavalid_master     (f2h_ram2_readdatavalid),
+	.read_master              (f2h_ram2_read),
+	.writedata_master         (f2h_ram2_writedata),
+	.byteenable_master        (f2h_ram2_byteenable),
+	.write_master             (f2h_ram2_write)
 );
 
 ////////////////////////////////////////////////////////
@@ -160,38 +160,38 @@ wire         f2h_vbuf_write;
 (* altera_attribute = {"-name SYNCHRONIZER_IDENTIFICATION FORCED_IF_ASYNCHRONOUS"} *) reg vbuf_reset_0 = 1'b1;
 (* altera_attribute = {"-name SYNCHRONIZER_IDENTIFICATION FORCED_IF_ASYNCHRONOUS"} *) reg vbuf_reset_1 = 1'b1;
 always @(posedge vbuf_clk) begin
-  vbuf_reset_0 <= reset_out;
-  vbuf_reset_1 <= vbuf_reset_0;
+	vbuf_reset_0 <= reset_out;
+	vbuf_reset_1 <= vbuf_reset_0;
 end
 
 f2sdram_safe_terminator #(
-  .ADDRESS_WITDH(28),
-  .DATA_WIDTH(128),
-  .BURSTCOUNT_WIDTH(8),
-  .BYTEENABLE_WIDTH(16)
+	.ADDRESS_WITDH(28),
+	.DATA_WIDTH(128),
+	.BURSTCOUNT_WIDTH(8),
+	.BYTEENABLE_WIDTH(16)
 ) f2sdram_safe_terminator_vbuf (
-  .clk                      (vbuf_clk),
-  .rst_req_sync             (vbuf_reset_1),
+	.clk                      (vbuf_clk),
+	.rst_req_sync             (vbuf_reset_1),
 
 	.waitrequest_slave        (vbuf_waitrequest),
-  .burstcount_slave         (vbuf_burstcount),
-  .address_slave            (vbuf_address),
-  .readdata_slave           (vbuf_readdata),
-  .readdatavalid_slave      (vbuf_readdatavalid),
-  .read_slave               (vbuf_read),
-  .writedata_slave          (vbuf_writedata),
-  .byteenable_slave         (vbuf_byteenable),
-  .write_slave              (vbuf_write),
+	.burstcount_slave         (vbuf_burstcount),
+	.address_slave            (vbuf_address),
+	.readdata_slave           (vbuf_readdata),
+	.readdatavalid_slave      (vbuf_readdatavalid),
+	.read_slave               (vbuf_read),
+	.writedata_slave          (vbuf_writedata),
+	.byteenable_slave         (vbuf_byteenable),
+	.write_slave              (vbuf_write),
 
-  .waitrequest_master       (f2h_vbuf_waitrequest),
-  .burstcount_master        (f2h_vbuf_burstcount),
-  .address_master           (f2h_vbuf_address),
-  .readdata_master          (f2h_vbuf_readdata),
-  .readdatavalid_master     (f2h_vbuf_readdatavalid),
-  .read_master              (f2h_vbuf_read),
-  .writedata_master         (f2h_vbuf_writedata),
-  .byteenable_master        (f2h_vbuf_byteenable),
-  .write_master             (f2h_vbuf_write)
+	.waitrequest_master       (f2h_vbuf_waitrequest),
+	.burstcount_master        (f2h_vbuf_burstcount),
+	.address_master           (f2h_vbuf_address),
+	.readdata_master          (f2h_vbuf_readdata),
+	.readdatavalid_master     (f2h_vbuf_readdatavalid),
+	.read_master              (f2h_vbuf_read),
+	.writedata_master         (f2h_vbuf_writedata),
+	.byteenable_master        (f2h_vbuf_byteenable),
+	.write_master             (f2h_vbuf_write)
 );
 
 ////////////////////////////////////////////////////////
