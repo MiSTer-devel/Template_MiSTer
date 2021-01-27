@@ -64,12 +64,8 @@ always @(posedge ram1_clk) begin
 	ram1_reset_1 <= ram1_reset_0;
 end
 
-f2sdram_safe_terminator #(
-	.ADDRESS_WITDH(29),
-	.DATA_WIDTH(64),
-	.BURSTCOUNT_WIDTH(8),
-	.BYTEENABLE_WIDTH(8)
-) f2sdram_safe_terminator_ram1 (
+f2sdram_safe_terminator #(64, 8) f2sdram_safe_terminator_ram1
+(
 	.clk                      (ram1_clk),
 	.rst_req_sync             (ram1_reset_1),
 
@@ -114,12 +110,8 @@ always @(posedge ram2_clk) begin
 	ram2_reset_1 <= ram2_reset_0;
 end
 
-f2sdram_safe_terminator #(
-	.ADDRESS_WITDH(29),
-	.DATA_WIDTH(64),
-	.BURSTCOUNT_WIDTH(8),
-	.BYTEENABLE_WIDTH(8)
-) f2sdram_safe_terminator_ram2 (
+f2sdram_safe_terminator #(64, 8) f2sdram_safe_terminator_ram2
+(
 	.clk                      (ram2_clk),
 	.rst_req_sync             (ram2_reset_1),
 
@@ -164,12 +156,8 @@ always @(posedge vbuf_clk) begin
 	vbuf_reset_1 <= vbuf_reset_0;
 end
 
-f2sdram_safe_terminator #(
-	.ADDRESS_WITDH(28),
-	.DATA_WIDTH(128),
-	.BURSTCOUNT_WIDTH(8),
-	.BYTEENABLE_WIDTH(16)
-) f2sdram_safe_terminator_vbuf (
+f2sdram_safe_terminator #(128, 8) f2sdram_safe_terminator_vbuf
+(
 	.clk                      (vbuf_clk),
 	.rst_req_sync             (vbuf_reset_1),
 
