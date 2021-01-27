@@ -31,7 +31,7 @@
 //   Main_MiSTer is also trying to issuing reset for f2sdram ports
 //   via fpgaportrst register in SDRAM Controller Subsystem when loading rbf.
 //   But according to the Intel's document, fpgaportrst register can be
-//   used to strech the port reset.
+//   used to stretch the port reset.
 //   It seems that it cannot be used to assert the port reset.
 //
 //   According to the Intel's document, there seems to be a reset port on
@@ -59,6 +59,7 @@ module f2sdram_safe_terminator #(
   parameter     BYTEENABLE_WIDTH = 8
 ) (
   // clk should be the same as one provided to f2sdram port
+  // clk should not be stop when reset is asserted
   input         clk,
   // rst_req_sync should be synchronized to clk
   // Asynchronous reset request is not supported
@@ -87,131 +88,170 @@ module f2sdram_safe_terminator #(
   input                         write_slave
 );
   /*
-   * Burst transaction observer
+   * Capture init reset deaseert
    */
-  typedef enum reg [1:0] {
-    IDLE, READ, WRITE
-  } state_t;
-
-  state_t state = IDLE;
-  state_t next_state;
-
-  wire burst_start = state == IDLE  && (next_state == READ || next_state == WRITE);
-  wire read_data   = state == READ  && readdatavalid_master;
-  wire write_data  = state == WRITE && !waitrequest_master;
-  wire burst_end   = (state == READ || state == WRITE) && burstcounter == burstcount_latch - 1'd1;
-  wire successful_non_burst_write = state == IDLE && write_slave && burstcount_slave == 1 && !waitrequest_master; 
-
-  reg [BURSTCOUNT_WIDTH-1:0] burstcounter       = 0;
-  reg [BURSTCOUNT_WIDTH-1:0] burstcount_latch   = 0;
-  reg [ADDRESS_WITDH-1:0]    address_latch      = 0;
-  reg [BYTEENABLE_WIDTH-1:0] byteenable_latch   = 0;
-  reg read_latch  = 0;
-  reg write_latch = 0;
+  reg init_reset_deasserted = 1'b0;
 
   always_ff @(posedge clk) begin
-    state <= next_state;
-
-    if (burst_start) begin
-      if (next_state == WRITE) begin
-        burstcounter <= waitrequest_master ? 1'd0 : 1'd1;
-      end else if (next_state == READ) begin
-        burstcounter <= 0;
-      end
-
-      burstcount_latch <= burstcount_slave;
-      byteenable_latch <= byteenable_slave;
-      address_latch    <= address_slave;
-      read_latch       <= next_state == READ;
-      write_latch      <= next_state == WRITE;
-
-    end else if (read_data || write_data) begin
-      burstcounter <= burstcounter + 1'd1;
-
-    end else if (burst_end) begin
-      read_latch  <= 1'b0;
-      write_latch <= 1'b0;
+    if (!rst_req_sync) begin
+      init_reset_deasserted <= 1'b1;
     end
   end
 
-  always_comb begin
-    case (state)
-      IDLE:     if (successful_non_burst_write)
-                  next_state <= IDLE;
-                else if (read_slave)
-                  next_state <= READ;
-                else if (write_slave)
-                  next_state <= WRITE;
-                else
-                  next_state <= IDLE;
-
-      READ:     if (burst_end)
-                  next_state <= IDLE;
-                else
-                  next_state <= READ;
-
-      WRITE:    if (burst_end)
-                  next_state <= IDLE;
-                else
-                  next_state <= WRITE;
-
-      default:  next_state <= IDLE;
-    endcase
-  end
-
   /*
-   * Safe terminating
+   * Lock stage
    */
-  wire on_transaction = (state == READ || state == WRITE) && (next_state != IDLE);
-  reg terminating = 0;
-  reg terminated  = 0;
-
-  reg [BURSTCOUNT_WIDTH-1:0] terminate_counter = 0;
-  reg [BURSTCOUNT_WIDTH-1:0] terminate_count   = 0;
-  reg [ADDRESS_WITDH-1:0]    terminate_address_latch    = 0;
-  reg [BYTEENABLE_WIDTH-1:0] terminate_byteenable_latch = 0;
-  reg terminate_read_latch  = 0;
-  reg terminate_write_latch = 0;
-
-  reg init_reset_deasserted = 0;
+  reg lock_stage = 1'b0;
 
   always_ff @(posedge clk) begin
     if (rst_req_sync) begin
       // Reset assert
       if (init_reset_deasserted) begin
-        if (on_transaction) begin
-          terminating <= 1'b1;
-          terminate_counter          <= burstcounter + 1'd1;
-          terminate_count            <= burstcount_latch;
-          terminate_address_latch    <= address_latch;
-          terminate_byteenable_latch <= byteenable_latch;
-          terminate_read_latch       <= read_latch;
-          terminate_write_latch      <= write_latch;
-        end else begin
-          terminated = 1'b1;
+        lock_stage <= 1'b1;
+      end
+    end else begin
+      // Reset deassert
+      lock_stage <= 1'b0;
+    end
+  end
+
+  /*
+   * Write burst transaction observer
+   */
+  reg state_write = 1'b0;
+  wire next_state_write;
+
+  wire burst_write_start     = !state_write  && next_state_write;
+  wire valid_write_data      = state_write && !waitrequest_master;
+  wire burst_write_end       = state_write && (write_burstcounter == write_burstcount_latch - 'd1);
+  wire valid_non_burst_write = !state_write && write_slave && (burstcount_slave == 'd1) && !waitrequest_master;
+
+  reg [BURSTCOUNT_WIDTH-1:0] write_burstcounter       = 'd0;
+  reg [BURSTCOUNT_WIDTH-1:0] write_burstcount_latch   = 'd0;
+  reg [ADDRESS_WITDH-1:0]    write_address_latch      = 'd0;
+
+  always_ff @(posedge clk) begin
+    state_write <= next_state_write;
+
+    if (burst_write_start) begin
+      write_burstcounter     <= waitrequest_master ? 'd0 :'d1;
+      write_burstcount_latch <= burstcount_slave;
+      write_address_latch    <= address_slave;
+    end else if (valid_write_data) begin
+      write_burstcounter     <= write_burstcounter + 'd1;
+    end
+  end
+
+  always_comb begin
+    if (!state_write) begin
+      if (valid_non_burst_write)
+        next_state_write = 1'b0;
+      else if (write_slave)
+        next_state_write = 1'b1;
+      else
+        next_state_write = 1'b0;
+    end else begin
+      if (burst_write_end)
+        next_state_write = 1'b0;
+      else
+        next_state_write = 1'b1;
+    end
+  end
+
+  /*
+   * Safe terminating burst writing
+   */
+  wire on_write_transaction       = state_write && next_state_write;
+  wire on_start_write_transaction = !state_write && next_state_write;
+  reg write_terminating = 1'b0;
+  reg write_terminated  = 1'b0;
+
+  reg [BURSTCOUNT_WIDTH-1:0] write_terminate_burstcount_latch   = 'd0;
+  reg [ADDRESS_WITDH-1:0]    write_terminate_address_latch      = 'd0;
+  reg [BURSTCOUNT_WIDTH-1:0] write_terminate_counter = 'd0;
+
+  always_ff @(posedge clk) begin
+    if (rst_req_sync) begin
+      // Reset assert
+      if (init_reset_deasserted) begin
+        if (!lock_stage) begin
+          if (on_write_transaction) begin
+            write_terminating                <= 1'b1;
+            write_terminate_burstcount_latch <= write_burstcount_latch;
+            write_terminate_address_latch    <= write_address_latch;
+            write_terminate_counter          <= waitrequest_master ? write_burstcounter : write_burstcounter + 'd1;
+          end else if (on_start_write_transaction) begin
+            if (valid_non_burst_write) begin
+              write_terminated <= 1'b1;
+            end else begin
+              write_terminating                 <= 1'b1;
+              write_terminate_burstcount_latch  <= burstcount_slave;
+              write_terminate_address_latch     <= address_slave;
+              write_terminate_counter           <= waitrequest_master ? 'd0 :'d1;
+            end
+          end else begin
+            write_terminated <= 1'b1;
+          end
         end
       end
     end else begin
       // Reset deassert
-      if (!terminating) begin
-        terminated <= 1'b0;
+      if (!write_terminating) begin
+        write_terminated <= 1'b0;
       end
-      init_reset_deasserted <= 1'b1;
     end
 
-    if (terminating) begin
-      // Continue read/write transaction until the end
-
-      if (terminate_read_latch && readdatavalid_master) begin
-        terminate_counter <= terminate_counter + 1'd1;
-      end else if (terminate_write_latch && !waitrequest_master) begin
-        terminate_counter <= terminate_counter + 1'd1;
+    if (write_terminating) begin
+      // Continue write transaction until the end
+      if (!waitrequest_master) begin
+        write_terminate_counter <= write_terminate_counter + 'd1;
       end
 
-      if (terminate_counter == terminate_count - 1'd1) begin
-        terminating <= 1'b0;
-        terminated  <= 1'b1;
+      if (write_terminate_counter == write_terminate_burstcount_latch - 'd1) begin
+        write_terminating <= 1'b0;
+        write_terminated  <= 1'b1;
       end
+    end
+  end
+
+  /*
+   * Safe terminating burst reading
+   */
+  reg [BURSTCOUNT_WIDTH-1:0] read_burstcount_latch   = 'd0;
+  reg [ADDRESS_WITDH-1:0]    read_address_latch      = 'd0;
+  reg read_terminating = 1'b0;
+  reg read_siganl_in_terminating = 1'b0;
+
+  always_ff @(posedge clk) begin
+    if (rst_req_sync) begin
+      // Reset assert
+      if (init_reset_deasserted) begin
+        if (!lock_stage) begin
+          if (read_slave && waitrequest_master) begin
+            // Need to keep read signal, burstcount and address until waitrequest_master deasserted
+            read_siganl_in_terminating <= 1'b1;
+            read_burstcount_latch      <= burstcount_slave;
+            read_address_latch         <= address_slave;
+            read_terminating           <= 1'b1;
+          end else if (!on_write_transaction && !on_start_write_transaction) begin
+            // Even not knowing reading is in progress or not,
+            // if it is in progress, it will finish at some point, and no need to do something.
+            // Assume that reading is in progress when we are not on write transaction.
+            read_siganl_in_terminating <= 1'b0;
+            read_burstcount_latch      <= 'd1;
+            read_address_latch         <= 'd0;
+            read_siganl_in_terminating <= 1'b0;
+            read_terminating           <= 1'b1;
+          end
+        end else begin
+          if (!waitrequest_master) begin
+            read_siganl_in_terminating <= 1'b0;
+          end
+        end
+      end
+    end else begin
+      // Reset deassert
+      read_terminating <= 1'b0;
     end
   end
 
@@ -219,20 +259,27 @@ module f2sdram_safe_terminator #(
    * Bus mux depending on the stage.
    */
   always_comb begin
-    if (terminated) begin
-      burstcount_master = 1;
-      address_master    = 0;
-      read_master       = 0;
-      writedata_master  = 0;
-      byteenable_master = 0;
-      write_master      = 0;
-    end else if (terminating) begin
-      burstcount_master = burstcount_latch;
-      address_master    = terminate_address_latch;
-      read_master       = read_latch;
-      writedata_master  = 0;
-      byteenable_master = terminate_byteenable_latch;
-      write_master      = write_latch;
+    if (read_terminating) begin
+      burstcount_master = read_burstcount_latch;
+      address_master    = read_address_latch;
+      read_master       = read_siganl_in_terminating;
+      writedata_master  = 'd0;
+      byteenable_master = '1; // all 1
+      write_master      = 'b0;
+    end else if (write_terminating) begin
+      burstcount_master = write_terminate_burstcount_latch;
+      address_master    = write_terminate_address_latch;
+      read_master       = 'b0;
+      writedata_master  = 'd0;
+      byteenable_master = '1; // all 1
+      write_master      = 'b1;
+    end else if (write_terminated) begin
+      burstcount_master = 'd1;
+      address_master    = 'd0;
+      read_master       = 'b0;
+      writedata_master  = 'd0;
+      byteenable_master = 'd0;
+      write_master      = 'b0;
     end else begin
       burstcount_master = burstcount_slave;
       address_master    = address_slave;
