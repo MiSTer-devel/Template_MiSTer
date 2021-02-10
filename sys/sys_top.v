@@ -782,6 +782,8 @@ reg [11:0] hmin;
 reg [11:0] hmax;
 reg [11:0] vmin;
 reg [11:0] vmax;
+reg [11:0] hdmi_height;
+reg [11:0] hdmi_width;
 
 always @(posedge clk_vid) begin
 	reg [31:0] wcalc;
@@ -789,14 +791,12 @@ always @(posedge clk_vid) begin
 	reg  [2:0] state;
 	reg [11:0] videow;
 	reg [11:0] videoh;
-	reg [11:0] height;
-	reg [11:0] width;
 	reg [11:0] arx;
 	reg [11:0] ary;
 
-	height <= (VSET && (VSET < HEIGHT)) ? VSET : HEIGHT;
-	width  <= (HSET && (HSET < WIDTH))  ? HSET : WIDTH;
-	
+	hdmi_height <= (VSET && (VSET < HEIGHT)) ? VSET : HEIGHT;
+	hdmi_width  <= (HSET && (HSET < WIDTH))  ? HSET : WIDTH;
+
 	if(!ARY) begin
 		if(ARX == 1) begin
 			arx <= arc1x;
@@ -826,17 +826,17 @@ always @(posedge clk_vid) begin
 				state<= 0;
 			end
 			else if(FREESCALE || !arx || !ary) begin
-				wcalc <= width;
-				hcalc <= height;
+				wcalc <= hdmi_width;
+				hcalc <= hdmi_height;
 			end
 			else begin
-				wcalc <= (height*arx)/ary;
-				hcalc <= (width*ary)/arx;
+				wcalc <= (hdmi_height*arx)/ary;
+				hcalc <= (hdmi_width*ary)/arx;
 			end
 
 		6: begin
-				videow <= (wcalc > width)  ? width  : wcalc[11:0];
-				videoh <= (hcalc > height) ? height : hcalc[11:0];
+				videow <= (wcalc > hdmi_width)  ? hdmi_width  : wcalc[11:0];
+				videoh <= (hcalc > hdmi_height) ? hdmi_height : hcalc[11:0];
 			end
 
 		7: begin
@@ -1483,7 +1483,10 @@ emu emu
 (
 	.CLK_50M(FPGA_CLK2_50),
 	.RESET(reset),
-	.HPS_BUS({f1, HDMI_TX_VS, clk_100m, clk_ihdmi, ce_hpix, hde_emu, hhs_fix, hvs_fix, io_wait, clk_sys, io_fpga, io_uio, io_strobe, io_wide, io_din, io_dout}),
+	.HPS_BUS({f1, HDMI_TX_VS, 
+				 clk_100m, clk_ihdmi,
+				 ce_hpix, hde_emu, hhs_fix, hvs_fix, 
+				 io_wait, clk_sys, io_fpga, io_uio, io_strobe, io_wide, io_din, io_dout}),
 
 	.VGA_R(r_out),
 	.VGA_G(g_out),
@@ -1493,6 +1496,9 @@ emu emu
 	.VGA_DE(de_emu),
 	.VGA_F1(f1),
 	.VGA_SCALER(vga_force_scaler),
+
+	.HDMI_WIDTH(direct_video ? 12'd0 : hdmi_width),
+	.HDMI_HEIGHT(direct_video ? 12'd0 : hdmi_height),
 
 	.CLK_VIDEO(clk_vid),
 	.CE_PIXEL(ce_pix),

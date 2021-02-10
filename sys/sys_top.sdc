@@ -32,7 +32,7 @@ set_false_path -to   {cfg[*]}
 set_false_path -from {cfg[*]}
 set_false_path -from {VSET[*]}
 set_false_path -to   {wcalc[*] hcalc[*]}
-set_false_path -to   {width[*] height[*]}
+set_false_path -to {hdmi_width[*] hdmi_height[*]}
 
 set_multicycle_path -to {*_osd|osd_vcnt*} -setup 2
 set_multicycle_path -to {*_osd|osd_vcnt*} -hold 1
