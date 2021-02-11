@@ -430,6 +430,7 @@ always@(posedge clk_sys) begin
 					6: LFB_HMAX        <= io_din[11:0];
 					7: LFB_VMIN        <= io_din[11:0];
 					8: LFB_VMAX        <= io_din[11:0];
+					9: LFB_STRIDE      <= io_din[13:0];
 				endcase
 			end
 			if(cmd == 'h25) {led_overtake, led_state} <= io_din;
@@ -747,6 +748,7 @@ reg [11:0] LFB_HMAX   = 0;
 reg [11:0] LFB_VMIN   = 0;
 reg [11:0] LFB_VMAX   = 0;
 reg [31:0] LFB_BASE   = 0;
+reg [13:0] LFB_STRIDE = 0;
 
 reg        FB_EN     = 0;
 reg  [5:0] FB_FMT    = 0;
@@ -762,7 +764,7 @@ always @(posedge clk_sys) begin
 		FB_WIDTH  <= LFB_WIDTH;
 		FB_HEIGHT <= LFB_HEIGHT;
 		FB_BASE   <= LFB_BASE;
-		FB_STRIDE <= 0;
+		FB_STRIDE <= LFB_STRIDE;
 	end
 	else begin
 		FB_FMT    <= fb_fmt;
