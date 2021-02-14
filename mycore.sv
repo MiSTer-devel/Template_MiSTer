@@ -38,6 +38,8 @@ module emu
 	//Video aspect ratio for HDMI. Most retro systems have ratio 4:3.
 	output [11:0] VIDEO_ARX,
 	output [11:0] VIDEO_ARY,
+	
+	output [1:0] HORIZ_INT,	// horizontal integer scaling setting
 
 	output  [7:0] VGA_R,
 	output  [7:0] VGA_G,
@@ -197,12 +199,15 @@ wire [1:0] ar = status[9:8];
 
 assign VIDEO_ARX = (!ar) ? 12'd4 : (ar - 1'd1);
 assign VIDEO_ARY = (!ar) ? 12'd3 : 12'd0;
+	
+assign HORIZ_INT = status [11:10];
 
 `include "build_id.v" 
 localparam CONF_STR = {
 	"MyCore;;",
 	"-;",
 	"O89,Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
+	"OAB,Intgr Hori Scale,Off,Narrow,Wide;",
 	"O2,TV Mode,NTSC,PAL;",
 	"O34,Noise,White,Red,Green,Blue;",
 	"-;",
