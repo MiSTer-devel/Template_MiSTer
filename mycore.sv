@@ -207,7 +207,7 @@ localparam CONF_STR = {
 	"MyCore;;",
 	"-;",
 	"O89,Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
-	"OAB,Intgr Hori Scale,Off,Narrow,Wide;",
+	"OAB,Intgr Hori Scale,Off,Narrow,Wide,Auto;",
 	"O2,TV Mode,NTSC,PAL;",
 	"O34,Noise,White,Red,Green,Blue;",
 	"-;",
