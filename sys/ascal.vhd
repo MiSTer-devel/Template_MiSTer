@@ -1695,6 +1695,8 @@ BEGIN
     VARIABLE dif_v : natural RANGE 0 TO 8*OHRES-1;
     VARIABLE off_v : natural RANGE 0 TO 15;
     VARIABLE h_int_multiple : natural RANGE 0 TO 255;
+    VARIABLE h_int_mod : natural RANGE 0 TO 2047;
+    VARIABLE h_int_up : boolean;
  BEGIN
     IF o_reset_na='0' THEN
       o_copy<=sWAIT;
