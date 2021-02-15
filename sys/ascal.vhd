@@ -1716,19 +1716,21 @@ BEGIN
       o_hsend  <=hsend; -- <ASYNC> ?
       o_hdisp  <=hdisp; -- <ASYNC> ?
       h_int_multiple := (hmax-hmin+1)/(i_hmax+1);
+      h_int_mod := (hmax - hmin +1) MOD (i_hmax + 1);
+      h_int_up := h_int(1 DOWNTO 0)="10" OR (h_int(1 DOWNTO 0)="11" AND (h_int_mod * 2) > (i_hmax + 1));
 
-      IF h_int(1 DOWNTO 0)="00" OR (h_int_multiple=0 AND h_int(1 DOWNTO 0) = "01") THEN    -- Horizontal integer scaling off
+      IF h_int(1 DOWNTO 0)="00" OR (h_int_multiple=0 AND NOT h_int_up) THEN   -- Horizontal integer scaling off
            o_hmin   <=hmin; -- <ASYNC> ?
            o_hmax   <=hmax; -- <ASYNC> ?
            o_hsize  <=o_hmax - o_hmin + 1;
       ELSE                                                          -- Horizontal integer scaling on
-           IF h_int(1 DOWNTO 0)="01" OR (h_int_multiple+1)*(i_hmax+1) > o_hdisp THEN       -- Narrow (round upscaling multiple down)
+           IF NOT h_int_up OR (h_int_multiple+1)*(i_hmax+1) > o_hdisp THEN    -- Narrow (round upscaling multiple down)
                o_hsize <= h_int_multiple*(i_hmax + 1);
            ELSE                                                     -- Wide (round upscaling multiple up)
-               o_hsize <= (h_int_multiple + 1)*(i_hmax + 1);
+               o_hsize <= (h_int_multiple +1)*(i_hmax + 1);
            END IF;
            o_hmin <= (o_hdisp - o_hsize) / 2;
-           o_hmax <= o_hmin + o_hsize - 1;
+           o_hmax <= o_hmin + o_hsize -1;
       END IF;
 
       o_vtotal <=vtotal; -- <ASYNC> ?
