@@ -94,6 +94,42 @@ end
 
 assign VGA_DE = vde & VGA_DE_IN;
 
+video_scale_int scale
+(
+	.CLK_VIDEO(CLK_VIDEO),
+	.HDMI_WIDTH(HDMI_WIDTH),
+	.HDMI_HEIGHT(HDMI_HEIGHT),
+	.hsize(hsize),
+	.vsize(vsize),
+	.arx_i(arxo),
+	.ary_i(aryo),
+	.scale(SCALE),
+	.arx_o(VIDEO_ARX),
+	.ary_o(VIDEO_ARY)
+);
+
+endmodule
+
+
+module video_scale_int
+(
+	input         CLK_VIDEO,
+
+	input  [11:0] HDMI_WIDTH,
+	input  [11:0] HDMI_HEIGHT,
+
+	input  [11:0] hsize,
+	input  [11:0] vsize,
+
+	input  [11:0] arx_i,
+	input  [11:0] ary_i,
+
+	input   [1:0] scale,
+
+	output reg [12:0] arx_o,
+	output reg [12:0] ary_o
+);
+
 reg         div_start;
 wire        div_run;
 reg  [23:0] div_num;
@@ -108,18 +144,18 @@ wire [23:0] mul_res;
 sys_umul #(12,12) mul(CLK_VIDEO,mul_start,mul_run, mul_arg1,mul_arg2,mul_res);
 
 wire [11:0] wideres = mul_res[11:0] + hsize;
+reg  [12:0] arxf,aryf;
 
 always @(posedge CLK_VIDEO) begin
 	reg [11:0] oheight;
-	reg [12:0] arxf,aryf;
 	reg  [3:0] cnt;
 
 	div_start <= 0;
 	mul_start <= 0;
 
-	if (!SCALE || !aryo || !arxo) begin
-		arxf <= arxo;
-		aryf <= aryo;
+	if (!scale || !ary_i || !arx_i) begin
+		arxf <= arx_i;
+		aryf <= ary_i;
 	end
 	else if(~div_start & ~div_run & ~mul_start & ~mul_run) begin
 		cnt <= cnt + 1'd1;
@@ -133,8 +169,8 @@ always @(posedge CLK_VIDEO) begin
 			1: if(!div_res[11:0]) begin
 					// screen resolution is lower than video resolution.
 					// Integer scaling is impossible.
-					arxf      <= arxo;
-					aryf      <= aryo;
+					arxf      <= arx_i;
+					aryf      <= ary_i;
 					cnt       <= 0;
 				end
 				else begin
@@ -146,13 +182,13 @@ always @(posedge CLK_VIDEO) begin
 			2: begin
 					oheight   <= mul_res[11:0];
 					mul_arg1  <= mul_res[11:0];
-					mul_arg2  <= arxo;
+					mul_arg2  <= arx_i;
 					mul_start <= 1;
 				end
 
 			3: begin
 					div_num   <= mul_res;
-					div_den   <= aryo;
+					div_den   <= ary_i;
 					div_start <= 1;
 				end
 
@@ -182,14 +218,14 @@ always @(posedge CLK_VIDEO) begin
 				end
 
 			8: begin
-					arxf <= {1'b1, ~SCALE[1] ? div_num[11:0] : (SCALE[0] && (wideres <= HDMI_WIDTH)) ? wideres : mul_res[11:0]};
+					arxf <= {1'b1, ~scale[1] ? div_num[11:0] : (scale[0] && (wideres <= HDMI_WIDTH)) ? wideres : mul_res[11:0]};
 					aryf <= {1'b1, oheight};
 				end
 		endcase
 	end
 
-	VIDEO_ARX <= arxf;
-	VIDEO_ARY <= aryf;
+	arx_o <= arxf;
+	ary_o <= aryf;
 end
 
 endmodule
