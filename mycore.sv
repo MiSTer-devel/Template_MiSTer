@@ -216,7 +216,7 @@ always_comb begin
 			arx = ARC1X;
 			ary = ARC1Y;
 		end
-		2'b11: being //Aspect ratio ARC2
+		2'b11: begin //Aspect ratio ARC2
 			arx = ARC2X;
 			ary = ARC2Y;
 		end
