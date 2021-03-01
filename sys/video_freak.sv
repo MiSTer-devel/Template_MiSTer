@@ -228,7 +228,7 @@ always @(posedge CLK_VIDEO) begin
 				end
 
 			8: begin
-				arxf <= {1'b1, !scale[2:1] ? w_nonint[11:0] : ((div_res && scale[2] || scale[0]) && (wideres <= HDMI_WIDTH)) ? wideres : mul_res[11:0]};
+					arxf <= {1'b1, !scale[2:1] ? w_nonint[11:0] : ((div_res && scale[2] || scale[0]) && (wideres <= HDMI_WIDTH)) ? wideres : mul_res[11:0]};
 					aryf <= {1'b1, oheight};
 				end
 		endcase
