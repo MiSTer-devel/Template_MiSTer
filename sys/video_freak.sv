@@ -126,7 +126,7 @@ module video_scale_int
 	input  [11:0] arx_i,
 	input  [11:0] ary_i,
 
-	input   [1:0] scale,
+	input   [2:0] scale,
 
 	output reg [12:0] arx_o,
 	output reg [12:0] ary_o,
@@ -228,7 +228,7 @@ always @(posedge CLK_VIDEO) begin
 				end
 
 			8: begin
-					arxf <= {1'b1, !SCALE[2:1] ? w_nonint[11:0] : ((div_res && SCALE[2] || SCALE[0]) && (wideres <= HDMI_WIDTH)) ? wideres : mul_res[11:0]};
+				arxf <= {1'b1, !scale[2:1] ? w_nonint[11:0] : ((div_res && scale[2] || scale[0]) && (wideres <= HDMI_WIDTH)) ? wideres : mul_res[11:0]};
 					aryf <= {1'b1, oheight};
 				end
 		endcase
