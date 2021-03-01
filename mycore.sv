@@ -39,6 +39,11 @@ module emu
 	//if VIDEO_ARX[12] or VIDEO_ARY[12] is set then [11:0] contains scaled size instead of aspect ratio.
 	output [12:0] VIDEO_ARX,
 	output [12:0] VIDEO_ARY,
+	
+	input  [11:0] ARC1X,
+	input  [11:0] ARC1Y,
+	input  [11:0] ARC2X,
+	input  [11:0] ARC2Y,
 
 	output  [7:0] VGA_R,
 	output  [7:0] VGA_G,
@@ -195,15 +200,47 @@ assign BUTTONS = 0;
 //////////////////////////////////////////////////////////////////
 
 wire [1:0] ar = status[9:8];
+wire [11:0] arx,ary;
 
-assign VIDEO_ARX = (!ar) ? 12'd4 : (ar - 1'd1);
-assign VIDEO_ARY = (!ar) ? 12'd3 : 12'd0;
-
+always_comb begin
+	case(ar)
+		2'b00: begin // Aspect ratio Original
+			arx = 12'd4
+			ary = 12'd3
+		end
+		2'b01: begin // Aspect ratio Full Screen
+			arx = HDMI_WIDTH;
+			ary = HDMI_HEIGHT;
+		end
+		2'b10: begin //Aspect ratio ARC1
+			arx = ARC1X;
+			ary = ARC1Y;
+		end
+		2'b11: being //Aspect ratio ARC2
+			arx = ARC2X;
+			ary = ARC2Y;
+		end
+	endcase
+end
+	
+video_freak video_freak
+(
+	.*,
+	.VGA_DE_IN(vga_de),
+	.ARX(((status[24:22]) || (!ar)) ? arx : (ar - 1'd1)),
+	.ARY(((status[24:22]) || (!ar)) ? ary : 12'd0),
+	.CROP_SIZE(10'd0),
+	.CROP_OFF(0),
+	.SCALE(status[24:22]),
+	.FULLSCREEN(ar==2'b01)
+);
+	
 `include "build_id.v" 
 localparam CONF_STR = {
 	"MyCore;;",
 	"-;",
 	"O89,Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
+	"OMO,Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer,Auto HV-Integer;",
 	"O2,TV Mode,NTSC,PAL;",
 	"O34,Noise,White,Red,Green,Blue;",
 	"-;",
