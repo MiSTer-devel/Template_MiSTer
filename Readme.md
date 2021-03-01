@@ -33,14 +33,14 @@ Framework implies use of at least one PLL in the core. Framework doesn't comtain
 
 The following macros can be defined and will affect the framework features:
 
-Macro          |   Effect
----------------|---------------------------------
-ARCADE_SYS     | Disables the UART and OSD status
-DEBUG_NOHDMI   | Disable HDMI-related modules. Speeds up compilation but only analogue/direct video is available
-DUAL_SDRAM     | Changes configuration of FPGA pins to work with dual SDRAM I/O boards
-USE_DDRAM      | Enables DDRAM ports of emu instance
-USE_SDRAM      | Enables SDRAM ports of emu instance
-USE_FB         | Allows to use framebuffer from the core
+Macro             |   Effect
+------------------|---------------------------------
+MR_ARCADE_SYS     | Disables the UART and OSD status
+MR_DEBUG_NOHDMI   | Disable HDMI-related modules. Speeds up compilation but only analogue/direct video is available
+MR_DUAL_SDRAM     | Changes configuration of FPGA pins to work with dual SDRAM I/O boards
+MR_USE_DDRAM      | Enables DDRAM ports of emu instance
+MR_USE_SDRAM      | Enables SDRAM ports of emu instance
+MR_USE_FB         | Allows to use framebuffer from the core
 
 
 # Quartus version
