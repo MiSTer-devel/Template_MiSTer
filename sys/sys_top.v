@@ -1557,6 +1557,11 @@ emu emu
 	.VIDEO_ARX(ARX),
 	.VIDEO_ARY(ARY),
 
+	.ARC1X(arc1x[11:0]),
+	.ARC1Y(arc1y[11:0]),
+	.ARC2X(arc2x[11:0]),
+	.ARC2Y(arc2y[11:0]),
+
 `ifdef USE_FB
 	.FB_EN(fb_en),
 	.FB_FORMAT(fb_fmt),
