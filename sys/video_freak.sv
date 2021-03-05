@@ -182,7 +182,7 @@ always @(posedge CLK_VIDEO) begin
 	div_start <= 0;
 	mul_start <= 0;
 
-	if (!SCALE || !ary_i || !arx_i) begin
+	if (!SCALE || (!ary_i && arx_i)) begin
 		arxf <= arx_i;
 		aryf <= ary_i;
 	end
@@ -210,48 +210,57 @@ always @(posedge CLK_VIDEO) begin
 
 			2: begin
 					oheight   <= mul_res[11:0];
+					if(!ary_i) begin
+						cnt    <= 8;
+					end
+				end
+				
+			3: begin
 					mul_arg1  <= mul_res[11:0];
 					mul_arg2  <= arx_i;
 					mul_start <= 1;
 				end
 
-			3: begin
+			4: begin
 					div_num   <= mul_res;
 					div_den   <= ary_i;
 					div_start <= 1;
 				end
 
-			4: begin
+			5: begin
 					div_num   <= div_res;
 					div_den   <= hsize;
 					div_start <= 1;
 				end
 
-			5: begin
+			6: begin
 					mul_arg1  <= hsize;
 					mul_arg2  <= div_res[11:0] ? div_res[11:0] : 12'd1;
 					mul_start <= 1;
 				end
 
-			6: if(mul_res <= HDMI_WIDTH) cnt <= 8;
-				else begin
+			7: if(mul_res <= HDMI_WIDTH) begin
+					cnt       <= 10;
+				end
+
+			8:	begin
 					div_num   <= HDMI_WIDTH;
 					div_den   <= hsize;
 					div_start <= 1;
 				end
 
-			7: begin
+			9: begin
 					mul_arg1  <= hsize;
 					mul_arg2  <= div_res[11:0] ? div_res[11:0] : 12'd1;
 					mul_start <= 1;
 				end
 
-			8: begin
+			10: begin
 					narrow    <= ((div_num[11:0] - mul_res[11:0]) <= (wideres - div_num[11:0])) || (wideres > HDMI_WIDTH);
 					wres      <= wideres;
 				end
 
-			9: begin
+			11: begin
 					case(SCALE)
 							2: arxf <= {1'b1, mul_res[11:0]};
 							3: arxf <= {1'b1, (wres > HDMI_WIDTH) ? mul_res[11:0] : wres};
