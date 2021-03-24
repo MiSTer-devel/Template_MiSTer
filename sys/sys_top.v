@@ -19,18 +19,6 @@
 //
 //============================================================================
 
-`ifndef ARCADE_SYS
-	`define USE_DDRAM
-	`define USE_SDRAM
-`endif
-
-`ifndef USE_DDRAM
-	`ifdef USE_FB
-		`define USE_DDRAM
-	`endif
-`endif
-
-
 module sys_top
 (
 	/////////// CLOCK //////////
@@ -139,18 +127,12 @@ module sys_top
 //////////////////////  Secondary SD  ///////////////////////////////////
 wire SD_CS, SD_CLK, SD_MOSI;
 
-`ifdef ARCADE_SYS
-	assign SD_CS   = 1'bZ;
-	assign SD_CLK  = 1'bZ;
-	assign SD_MOSI = 1'bZ;
+`ifndef DUAL_SDRAM
+	wire sd_miso = SW[3] | SDIO_DAT[0];
 `else
-	`ifndef DUAL_SDRAM
-		wire sd_miso = SW[3] | SDIO_DAT[0];
-	`else
-		wire sd_miso = 1;
-	`endif
-	wire SD_MISO = mcp_sdcd ? sd_miso : SD_SPI_MISO;
+	wire sd_miso = 1;
 `endif
+wire SD_MISO = mcp_sdcd ? sd_miso : SD_SPI_MISO;
 
 `ifndef DUAL_SDRAM
 	assign SDIO_DAT[2:1]= 2'bZZ;
@@ -481,9 +463,7 @@ end
 
 cyclonev_hps_interface_peripheral_uart uart
 (
-	.ri(0)
-`ifndef ARCADE_SYS
-	,
+	.ri(0),
 	.dsr(uart_dsr),
 	.dcd(uart_dsr),
 	.dtr(uart_dtr),
@@ -492,7 +472,6 @@ cyclonev_hps_interface_peripheral_uart uart
 	.rts(uart_rts),
 	.rxd(uart_rxd),
 	.txd(uart_txd)
-`endif
 );
 
 wire aspi_sck,aspi_mosi,aspi_ss,aspi_miso;
@@ -547,7 +526,6 @@ sysmem_lite sysmem
 	//DE10-nano has no reset signal on GPIO, so core has to emulate cold reset button.
 	.reset_hps_cold_req(btn_r),
 
-`ifdef USE_DDRAM
 	//64-bit DDR3 RAM access
 	.ram1_clk(ram_clk),
 	.ram1_address(ram_address),
@@ -559,7 +537,6 @@ sysmem_lite sysmem
 	.ram1_writedata(ram_writedata),
 	.ram1_byteenable(ram_byteenable),
 	.ram1_write(ram_write),
-`endif
 
 	//64-bit DDR3 RAM access
 	.ram2_clk(clk_audio),
@@ -1115,10 +1092,6 @@ osd hdmi_osd
 	.hs_out(hdmi_hs_osd),
 	.vs_out(hdmi_vs_osd),
 	.de_out(hdmi_de_osd)
-`ifndef ARCADE_SYS
-	,
-	.osd_status(osd_status)
-`endif
 );
 `endif
 
@@ -1257,6 +1230,7 @@ osd vga_osd
 	.io_osd(io_osd_vga),
 	.io_strobe(io_strobe),
 	.io_din(io_din),
+	.osd_status(osd_status),
 
 	.clk_video(clk_vid),
 	.din(vga_data_sl),
@@ -1457,18 +1431,16 @@ wire        hvs_fix, hhs_fix, hde_emu;
 wire        clk_vid, ce_pix, clk_ihdmi, ce_hpix;
 wire        vga_force_scaler;
 
-`ifdef USE_DDRAM
-	wire        ram_clk;
-	wire [28:0] ram_address;
-	wire [7:0]  ram_burstcount;
-	wire        ram_waitrequest;
-	wire [63:0] ram_readdata;
-	wire        ram_readdatavalid;
-	wire        ram_read;
-	wire [63:0] ram_writedata;
-	wire [7:0]  ram_byteenable;
-	wire        ram_write;
-`endif
+wire        ram_clk;
+wire [28:0] ram_address;
+wire [7:0]  ram_burstcount;
+wire        ram_waitrequest;
+wire [63:0] ram_readdata;
+wire        ram_readdatavalid;
+wire        ram_read;
+wire [63:0] ram_writedata;
+wire [7:0]  ram_byteenable;
+wire        ram_write;
 
 wire        led_user;
 wire  [1:0] led_power;
@@ -1480,10 +1452,6 @@ sync_fix sync_h(clk_vid, hs_emu, hs_fix);
 
 wire  [6:0] user_out, user_in;
 
-`ifndef USE_SDRAM
-assign {SDRAM_DQ, SDRAM_A, SDRAM_BA, SDRAM_CLK, SDRAM_CKE, SDRAM_DQML, SDRAM_DQMH, SDRAM_nWE, SDRAM_nCAS, SDRAM_nRAS, SDRAM_nCS} = {39'bZ};
-`endif
-
 assign clk_ihdmi= clk_vid;
 assign ce_hpix  = ce_pix;
 assign hr_out   = r_out;
@@ -1493,19 +1461,14 @@ assign hhs_fix  = hs_fix;
 assign hvs_fix  = vs_fix;
 assign hde_emu  = de_emu;
 
-`ifdef ARCADE_SYS
-	assign audio_mix = 0;
-	assign {ADC_SCK, ADC_SDI, ADC_CONVST} = 0;
-	assign btn = 0;
-`else
-	wire uart_dtr;
-	wire uart_dsr;
-	wire uart_cts;
-	wire uart_rts;
-	wire uart_rxd;
-	wire uart_txd;
-	wire osd_status;
-`endif
+wire uart_dtr;
+wire uart_dsr;
+wire uart_cts;
+wire uart_rts;
+wire uart_rxd;
+wire uart_txd;
+
+wire osd_status;
 
 wire        fb_en;
 wire  [4:0] fb_fmt;
@@ -1583,13 +1546,10 @@ emu emu
 	.AUDIO_L(audio_l),
 	.AUDIO_R(audio_r),
 	.AUDIO_S(audio_s),
-
-`ifndef ARCADE_SYS
 	.AUDIO_MIX(audio_mix),
-	.ADC_BUS({ADC_SCK,ADC_SDO,ADC_SDI,ADC_CONVST}),
-`endif
 
-`ifdef USE_DDRAM
+	.ADC_BUS({ADC_SCK,ADC_SDO,ADC_SDI,ADC_CONVST}),
+
 	.DDRAM_CLK(ram_clk),
 	.DDRAM_ADDR(ram_address),
 	.DDRAM_BURSTCNT(ram_burstcount),
@@ -1600,9 +1560,7 @@ emu emu
 	.DDRAM_DIN(ram_writedata),
 	.DDRAM_BE(ram_byteenable),
 	.DDRAM_WE(ram_write),
-`endif
 
-`ifdef USE_SDRAM
 	.SDRAM_DQ(SDRAM_DQ),
 	.SDRAM_A(SDRAM_A),
 	.SDRAM_DQML(SDRAM_DQML),
@@ -1614,7 +1572,6 @@ emu emu
 	.SDRAM_nCAS(SDRAM_nCAS),
 	.SDRAM_CLK(SDRAM_CLK),
 	.SDRAM_CKE(SDRAM_CKE),
-`endif
 
 `ifdef DUAL_SDRAM
 	.SDRAM2_DQ(SDRAM2_DQ),
@@ -1628,9 +1585,9 @@ emu emu
 	.SDRAM2_EN(SW[3]),
 `endif
 
-`ifndef ARCADE_SYS
 	.BUTTONS(btn),
 	.OSD_STATUS(osd_status),
+
 	.SD_SCK(SD_CLK),
 	.SD_MOSI(SD_MOSI),
 	.SD_MISO(SD_MISO),
@@ -1647,7 +1604,6 @@ emu emu
 	.UART_TXD(uart_rxd),
 	.UART_DTR(uart_dsr),
 	.UART_DSR(uart_dtr),
-`endif
 
 	.USER_OUT(user_out),
 	.USER_IN(user_in)

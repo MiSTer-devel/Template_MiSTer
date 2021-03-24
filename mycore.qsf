@@ -37,6 +37,7 @@ set_global_assignment -name PHYSICAL_SYNTHESIS_REGISTER_DUPLICATION ON
 set_global_assignment -name PHYSICAL_SYNTHESIS_REGISTER_RETIMING ON
 set_global_assignment -name OPTIMIZATION_TECHNIQUE SPEED
 set_global_assignment -name MUX_RESTRUCTURE ON
+set_global_assignment -name REMOVE_REDUNDANT_LOGIC_CELLS ON
 set_global_assignment -name AUTO_DELAY_CHAINS_FOR_HIGH_FANOUT_INPUT_PINS ON
 set_global_assignment -name PHYSICAL_SYNTHESIS_COMBO_LOGIC_FOR_AREA ON
 set_global_assignment -name ADV_NETLIST_OPT_SYNTH_WYSIWYG_REMAP ON
@@ -49,10 +50,8 @@ set_global_assignment -name PHYSICAL_SYNTHESIS_ASYNCHRONOUS_SIGNAL_PIPELINING ON
 set_global_assignment -name ALM_REGISTER_PACKING_EFFORT MEDIUM
 set_global_assignment -name SEED 1
 
-#set_global_assignment -name VERILOG_MACRO "ARCADE_SYS=1"
 #set_global_assignment -name VERILOG_MACRO "USE_FB=1"
-#set_global_assignment -name VERILOG_MACRO "USE_SDRAM=1"
-#set_global_assignment -name VERILOG_MACRO "USE_DDRAM=1"
+#set_global_assignment -name VERILOG_MACRO "DUAL_SDRAM=1"
 
 #do not enable DEBUG_NOHDMI in release!
 #set_global_assignment -name VERILOG_MACRO "DEBUG_NOHDMI=1"

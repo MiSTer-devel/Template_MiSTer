@@ -109,7 +109,6 @@ module emu
 	output        SD_CS,
 	input         SD_CD,
 
-`ifdef USE_DDRAM
 	//High latency DDR3 RAM interface
 	//Use for non-critical time purposes
 	output        DDRAM_CLK,
@@ -122,9 +121,7 @@ module emu
 	output [63:0] DDRAM_DIN,
 	output  [7:0] DDRAM_BE,
 	output        DDRAM_WE,
-`endif
 
-`ifdef USE_SDRAM
 	//SDRAM interface with lower latency
 	output        SDRAM_CLK,
 	output        SDRAM_CKE,
@@ -137,10 +134,10 @@ module emu
 	output        SDRAM_nCAS,
 	output        SDRAM_nRAS,
 	output        SDRAM_nWE,
-`endif
 
 `ifdef DUAL_SDRAM
 	//Secondary SDRAM
+	//Set all output SDRAM_* signals to Z ASAP if SDRAM2_EN is 0
 	input         SDRAM2_EN,
 	output        SDRAM2_CLK,
 	output [12:0] SDRAM2_A,
