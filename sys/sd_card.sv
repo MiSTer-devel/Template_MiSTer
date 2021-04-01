@@ -27,37 +27,36 @@
 
 module sd_card #(parameter WIDE = 0)
 (
-	input         clk_sys,
-	input         reset,
+	input             clk_sys,
+	input             reset,
 
-	input         sdhc,
-	
-	output [31:0] sd_lba,
-	output reg    sd_rd,
-	output reg    sd_wr,
-	input         sd_ack,
-	input         sd_ack_conf,
+	input             sdhc,
+	input             img_mounted,
+	input      [63:0] img_size,
 
-	input  [AW:0] sd_buff_addr,
-	input  [DW:0] sd_buff_dout,
-	output [DW:0] sd_buff_din,
-	input         sd_buff_wr,
+	output reg [31:0] sd_lba,
+	output reg        sd_rd,
+	output reg        sd_wr,
+	input             sd_ack,
+
+	input      [AW:0] sd_buff_addr,
+	input      [DW:0] sd_buff_dout,
+	output     [DW:0] sd_buff_din,
+	input             sd_buff_wr,
 
 	// SPI interface
-	input         clk_spi,
+	input             clk_spi,
 
-	input         ss,
-	input         sck,
-	input         mosi,
-	output reg    miso
+	input             ss,
+	input             sck,
+	input             mosi,
+	output reg        miso
 );
 
 localparam AW = WIDE ?  7 : 8;
 localparam DW = WIDE ? 15 : 7;
 
-assign sd_lba = sdhc ? lba : {9'd0, lba[31:9]};
-
-wire[31:0] OCR = { 1'b1, sdhc, 30'd0 };  // bit30 = 1 -> high capaciry card (sdhc) // bit31 = 0 -> card power up finished
+wire[31:0] OCR = { 1'b1, csd_sdhc, 30'd0 };  // bit30 = 1 -> high capaciry card (sdhc) // bit31 = 0 -> card power up finished
 wire [7:0] READ_DATA_TOKEN     = 8'hfe;
 wire [7:0] WRITE_DATA_RESPONSE = 8'h05;
 
@@ -78,39 +77,94 @@ localparam WR_STATE_RECV_CRC1  = 4;
 localparam WR_STATE_SEND_DRESP = 5;
 localparam WR_STATE_BUSY       = 6;
 
-sdbuf #(WIDE) buffer
+localparam PREF_STATE_IDLE     = 0;
+localparam PREF_STATE_RD       = 1;
+localparam PREF_STATE_FINISH   = 2;
+
+altsyncram sdbuf
 (
-	.clock_a(clk_sys),
-	.address_a(sd_buff_addr),
-	.data_a(sd_buff_dout),
-	.wren_a(sd_ack & sd_buff_wr),
-	.q_a(sd_buff_din),
+	.clock0    (clk_sys),
+	.address_a ({sd_buf,sd_buff_addr}),
+	.data_a    (sd_buff_dout),
+	.wren_a    (sd_ack & sd_buff_wr),
+	.q_a       (sd_buff_din),
 
-	.clock_b(clk_spi),
-	.address_b(buffer_ptr),
-	.data_b(buffer_din),
-	.wren_b(buffer_wr),
-	.q_b(buffer_dout)
+	.clock1    (clk_spi),
+	.address_b ({spi_buf,buffer_ptr}),
+	.data_b    (buffer_din),
+	.wren_b    (buffer_wr),
+	.q_b       (buffer_dout),
+
+	.aclr0(1'b0),
+	.aclr1(1'b0),
+	.addressstall_a(1'b0),
+	.addressstall_b(1'b0),
+	.byteena_a(1'b1),
+	.byteena_b(1'b1),
+	.clocken0(1'b1),
+	.clocken1(1'b1),
+	.clocken2(1'b1),
+	.clocken3(1'b1),
+	.eccstatus(),
+	.rden_a(1'b1),
+	.rden_b(1'b1)
 );
+defparam
+	sdbuf.numwords_a = 1<<(AW+3),
+	sdbuf.widthad_a  = AW+3,
+	sdbuf.width_a    = DW+1,
+	sdbuf.numwords_b = 2048,
+	sdbuf.widthad_b  = 11,
+	sdbuf.width_b    = 8,
+	sdbuf.address_reg_b = "CLOCK1",
+	sdbuf.clock_enable_input_a = "BYPASS",
+	sdbuf.clock_enable_input_b = "BYPASS",
+	sdbuf.clock_enable_output_a = "BYPASS",
+	sdbuf.clock_enable_output_b = "BYPASS",
+	sdbuf.indata_reg_b = "CLOCK1",
+	sdbuf.intended_device_family = "Cyclone V",
+	sdbuf.lpm_type = "altsyncram",
+	sdbuf.operation_mode = "BIDIR_DUAL_PORT",
+	sdbuf.outdata_aclr_a = "NONE",
+	sdbuf.outdata_aclr_b = "NONE",
+	sdbuf.outdata_reg_a = "UNREGISTERED",
+	sdbuf.outdata_reg_b = "UNREGISTERED",
+	sdbuf.power_up_uninitialized = "FALSE",
+	sdbuf.read_during_write_mode_port_a = "NEW_DATA_NO_NBE_READ",
+	sdbuf.read_during_write_mode_port_b = "NEW_DATA_NO_NBE_READ",
+	sdbuf.width_byteena_a = 1,
+	sdbuf.width_byteena_b = 1,
+	sdbuf.wrcontrol_wraddress_reg_b = "CLOCK1";
 
-sdbuf #(WIDE) conf
-(
-	.clock_a(clk_sys),
-	.address_a(sd_buff_addr),
-	.data_a(sd_buff_dout),
-	.wren_a(sd_ack_conf & sd_buff_wr),
+reg [26:0] csd_size;
+reg        csd_sdhc;
+always @(posedge clk_sys) begin
+	if (img_mounted) begin
+		csd_sdhc <= sdhc;
+		if (sdhc) begin
+			csd_size[0]     <= 0;
+			csd_size[22:1]  <= img_size[40:19]; // in 512K units
+			csd_size[26:23] <= 0;
+		end
+		else begin
+			csd_size[2:0]   <= 7; // C_SIZE_MULT
+			csd_size[14:3]  <= 12'b101101101101;
+			csd_size[26:15] <= img_size[29:18]; // in 256K units ((2**(C_SIZE_MULT+2))*512)
+		end
+	end
+end
 
-	.clock_b(clk_spi),
-	.address_b(buffer_ptr),
-	.q_b(config_dout)
-);
+wire [127:0] CSD = {1'b0,csd_sdhc,6'h00,8'h0e,8'h00,8'h32,8'h5b,8'h59,6'h00,csd_size,7'h7f,8'h80,8'h0a,8'h40,8'h40,8'hf1};
+wire [127:0] CID = {8'hcd,8'hc7,8'h00,8'h93,8'h6f,8'h2f,8'h73,8'h00,8'h00,8'h44,8'h32,8'h38,8'h34,8'h00,8'h00,8'h3e};
 
-reg [31:0] lba, new_lba;
+reg [31:0] new_lba;
 reg  [8:0] buffer_ptr;
 reg  [7:0] buffer_din;
 wire [7:0] buffer_dout;
 wire [7:0] config_dout;
 reg        buffer_wr;
+
+reg  [1:0] sd_buf, spi_buf;
 
 always @(posedge clk_spi) begin
 	reg [2:0] read_state;
@@ -128,16 +182,40 @@ always @(posedge clk_spi) begin
 	reg       old_sck;
 	reg       synced;
 	reg [5:0] ack;
-	reg       io_ack;
 	reg [4:0] idle_cnt = 0;
 	reg [2:0] wait_m_cnt;
+	reg [1:0] pref_state;
 
 	if(buffer_wr & ~&buffer_ptr) buffer_ptr <= buffer_ptr + 1'd1;
 	buffer_wr <= 0;
 
 	ack <= {ack[4:0], sd_ack};
-	if(ack[5:4] == 2'b10) io_ack <= 1;
 	if(ack[5:4] == 2'b01) {sd_rd,sd_wr} <= 0;
+	if(ack[5:4] == 2'b10) begin
+		sd_buf <= sd_buf + 1'd1;
+		sd_lba <= sd_lba + 1;
+	end
+	
+	case(pref_state)
+		PREF_STATE_IDLE:
+			if(((sd_buf - spi_buf) < 2) && (read_state != RD_STATE_IDLE)) begin
+				sd_rd <= 1;
+				pref_state <= PREF_STATE_RD;
+			end
+
+		PREF_STATE_RD:
+			if(read_state == RD_STATE_IDLE) begin
+				pref_state <= PREF_STATE_IDLE;
+			end
+			else if(ack[5:4] == 2'b10) begin
+				pref_state <= (cmd == 'h52) ? PREF_STATE_IDLE : PREF_STATE_FINISH;
+			end
+
+		PREF_STATE_FINISH:
+			if(read_state == RD_STATE_IDLE) begin
+				pref_state <= PREF_STATE_IDLE;
+			end
+	endcase
 
 	old_sck <= sck;
 	
@@ -152,8 +230,10 @@ always @(posedge clk_spi) begin
 		sbuf        <= 7'b1111111;
 		tx_finish   <= 0;
 		rx_finish   <= 0;
+		cmd         <= 0;
 		read_state  <= RD_STATE_IDLE;
 		write_state <= WR_STATE_IDLE;
+		pref_state  <= PREF_STATE_IDLE;
 	end
 
 	if(old_sck & ~sck & ~ss) begin
@@ -174,10 +254,10 @@ always @(posedge clk_spi) begin
 						
 				// CMD17/CMD18
 				if((cmd == 'h51) | (cmd == 'h52)) begin
-					io_ack <= 0;
+					spi_buf <= 0;
+					sd_buf  <= 0;
+					sd_lba  <= csd_sdhc ? new_lba : {9'd0, new_lba[31:9]};
 					read_state <= RD_STATE_WAIT_IO;         // start waiting for data from io controller
-					lba <= new_lba;
-					sd_rd <= 1;                      // trigger request to io controller
 				end
 			end
 		end
@@ -197,7 +277,7 @@ always @(posedge clk_spi) begin
 
 			// waiting for io controller to return data
 			RD_STATE_WAIT_IO: begin
-				if(io_ack & (bit_cnt == 7)) read_state <= RD_STATE_SEND_TOKEN;
+				if((sd_buf != spi_buf) & (bit_cnt == 7)) read_state <= RD_STATE_SEND_TOKEN;
 			end
 
 			// send data token
@@ -207,14 +287,13 @@ always @(posedge clk_spi) begin
 				if(bit_cnt == 7) begin
 					read_state <= RD_STATE_SEND_DATA;   // next: send data
 					buffer_ptr <= 0;
-					if(cmd == 'h49) buffer_ptr <= 16;
 				end
 			end
 
 			// send data
 			RD_STATE_SEND_DATA: begin
 
-				miso <= ((cmd == 'h49) | (cmd == 'h4A)) ? config_dout[~bit_cnt] : buffer_dout[~bit_cnt];
+				miso <= (cmd == 'h49) ? CSD[{buffer_ptr[3:0],~bit_cnt}] : (cmd == 'h4A) ? CID[{buffer_ptr[3:0],~bit_cnt}] : buffer_dout[~bit_cnt];
 
 				if(bit_cnt == 7) begin
 
@@ -237,9 +316,7 @@ always @(posedge clk_spi) begin
 				if(bit_cnt == 7) begin
 					wait_m_cnt <= wait_m_cnt + 1'd1;
 					if(&wait_m_cnt) begin
-						lba <= lba + 1;
-						io_ack <= 0;
-						sd_rd <= 1;
+						spi_buf <= spi_buf + 1'd1;
 						read_state <= RD_STATE_WAIT_IO;
 					end
 				end
@@ -368,6 +445,7 @@ always @(posedge clk_spi) begin
 
 					// CMD18: READ_MULTIPLE
 					'h52: reply <= 0;    // ok
+
 					// ACMD23:  SET_WR_BLK_ERASE_COUNT
 					'h57: reply <= 0;     //ok
 
@@ -378,7 +456,9 @@ always @(posedge clk_spi) begin
 							reply <= 0;    // ok
 							write_state <= WR_STATE_EXP_DTOKEN;  // expect data token
 							rx_finish <=0;
-							lba <= new_lba;
+							sd_lba <= csd_sdhc ? new_lba : {9'd0, new_lba[31:9]};
+							spi_buf <= 0;
+							sd_buf <= 0;
 						end
 
 					// ACMD41: APP_SEND_OP_COND
@@ -444,16 +524,16 @@ always @(posedge clk_spi) begin
 				// send data response
 				WR_STATE_SEND_DRESP: begin
 					write_state <= WR_STATE_BUSY;
-					io_ack <= 0;
+					spi_buf <= spi_buf + 1'd1;
 					sd_wr <= 1;
 				end
 
 				// wait for io controller to accept data
 				WR_STATE_BUSY:
-					if(io_ack) begin
+					if(spi_buf == sd_buf) begin
 						if(cmd == 'h59) begin
 							write_state <= WR_STATE_EXP_DTOKEN;
-							lba <= lba + 1;
+							sd_lba <= sd_lba + 1;
 						end
 						else begin
 							write_state <= WR_STATE_IDLE;
@@ -476,62 +556,5 @@ always @(posedge clk_spi) begin
 		end
 	end
 end
-
-endmodule
-
-module sdbuf #(parameter WIDE)
-(
-	input             clock_a,
-	input      [AW:0] address_a,
-	input      [DW:0] data_a, 
-	input             wren_a,
-	output reg [DW:0] q_a,
-
-	input             clock_b,
-	input       [8:0] address_b,
-	input       [7:0] data_b, 
-	input             wren_b,
-	output reg  [7:0] q_b
-);
-
-localparam AW = WIDE ?  7 : 8;
-localparam DW = WIDE ? 15 : 7;
-
-always@(posedge clock_a) begin
-	if(wren_a) begin
-		ram[address_a] <= data_a;
-		q_a <= data_a;
-	end
-	else begin
-		q_a <= ram[address_a];
-	end
-end
-
-generate
-	if(WIDE) begin
-		reg [1:0][7:0] ram[1<<8];
-		always@(posedge clock_b) begin
-			if(wren_b) begin
-				ram[address_b[8:1]][address_b[0]] <= data_b;
-				q_b <= data_b;
-			end
-			else begin
-				q_b <= ram[address_b[8:1]][address_b[0]];
-			end
-		end
-	end
-	else begin
-		reg [7:0] ram[1<<9];
-		always@(posedge clock_b) begin
-			if(wren_b) begin
-				ram[address_b] <= data_b;
-				q_b <= data_b;
-			end
-			else begin
-				q_b <= ram[address_b];
-			end
-		end
-	end
-endgenerate
 
 endmodule

@@ -94,7 +94,6 @@ module hps_io #(parameter STRLEN=0, PS2DIV=0, WIDE=0, VDNUM=1, PS2WE=0)
 	// do not use in new projects.
 	// CID and CSD are fake except CSD image size field.
 	input             sd_conf,
-	output reg        sd_ack_conf,
 
 	// SD byte level access. Signals for 2-PORT altsyncram.
 	output reg [AW:0] sd_buff_addr,
@@ -282,7 +281,6 @@ always@(posedge clk_sys) begin : uio_block
 		cmd <= 0;
 		byte_cnt <= 0;
 		sd_ack <= 0;
-		sd_ack_conf <= 0;
 		io_dout <= 0;
 		ps2skip <= 0;
 		img_mounted <= 0;
@@ -296,7 +294,6 @@ always@(posedge clk_sys) begin : uio_block
 			cmd <= io_din;
 
 			case(io_din)
-				'h19: sd_ack_conf <= 1;
 				'h17,
 				'h18: sd_ack <= 1;
 				'h29: io_dout <= {4'hA, stflg};
@@ -365,11 +362,6 @@ always@(posedge clk_sys) begin : uio_block
 							endcase
 						end
 
-				// send SD config IO -> FPGA
-				// flag that download begins
-				// sd card knows data is config if sd_dout_strobe is asserted
-				// with sd_ack still being inactive (low)
-				'h19,
 				// send sector IO -> FPGA
 				// flag that download begins
 				'h17: begin
