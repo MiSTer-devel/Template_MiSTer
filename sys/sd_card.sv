@@ -378,7 +378,7 @@ always @(posedge clk_spi) begin
 			   cmd55 <= (cmd == 'h77);
 			end
 
- 			if((byte_cnt > 5) & (read_state == RD_STATE_WAIT_M) && ({sbuf, mosi} == 8'h4c)) begin
+ 			if((byte_cnt > 5) & (read_state != RD_STATE_IDLE) && ({sbuf, mosi} == 8'h4c)) begin
 				byte_cnt <= 0;
 				rx_finish <= 0;
 				cmd <= {sbuf, mosi};
