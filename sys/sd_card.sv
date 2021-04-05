@@ -23,9 +23,9 @@
 
 //
 // Made module syncrhronous. Total code refactoring. (Sorgelig)
-// clk_spi must be at least 4 x sck for proper work.
+// clk_spi must be at least 2 x sck for proper work.
 
-module sd_card #(parameter WIDE = 0)
+module sd_card #(parameter WIDE = 0, OCTAL=0)
 (
 	input             clk_sys,
 	input             reset,
@@ -49,12 +49,13 @@ module sd_card #(parameter WIDE = 0)
 
 	input             ss,
 	input             sck,
-	input             mosi,
-	output reg        miso
+	input      [SW:0] mosi,
+	output reg [SW:0] miso
 );
 
 localparam AW = WIDE ?  7 : 8;
 localparam DW = WIDE ? 15 : 7;
+localparam SW = OCTAL ? 7 : 0;
 
 wire[31:0] OCR = { 1'b1, csd_sdhc, 30'd0 };  // bit30 = 1 -> high capaciry card (sdhc) // bit31 = 0 -> card power up finished
 wire [7:0] READ_DATA_TOKEN     = 8'hfe;
@@ -166,12 +167,14 @@ reg        buffer_wr;
 
 reg  [1:0] sd_buf, spi_buf;
 
+reg  [6:0] sbuf;
+wire [7:0] ibuf = OCTAL ? mosi : {sbuf,mosi[0]};
+
 always @(posedge clk_spi) begin
 	reg [2:0] read_state;
 	reg [2:0] write_state;
-	reg [6:0] sbuf;
 	reg       cmd55;
-	reg [7:0] cmd;
+	reg [5:0] cmd;
 	reg [2:0] bit_cnt;
 	reg [3:0] byte_cnt;
 	reg [7:0] reply;
@@ -208,7 +211,7 @@ always @(posedge clk_spi) begin
 				pref_state <= PREF_STATE_IDLE;
 			end
 			else if(ack[5:4] == 2'b10) begin
-				pref_state <= (cmd == 'h52) ? PREF_STATE_IDLE : PREF_STATE_FINISH;
+				pref_state <= (cmd == 18) ? PREF_STATE_IDLE : PREF_STATE_FINISH;
 			end
 
 		PREF_STATE_FINISH:
@@ -222,12 +225,10 @@ always @(posedge clk_spi) begin
 	if(~ss)                              idle_cnt <= 31;
 	else if(~old_sck && sck && idle_cnt) idle_cnt <= idle_cnt - 1'd1;
 
-	if(reset || !idle_cnt) begin
-		bit_cnt     <= 0;
+	if(reset || (OCTAL ? ss : !idle_cnt)) begin
+		bit_cnt     <= OCTAL ? 3'd7 : 3'd0;
 		byte_cnt    <= 15;
-		synced      <= 0;
-		miso        <= 1;
-		sbuf        <= 7'b1111111;
+		miso        <= '1;
 		tx_finish   <= 0;
 		rx_finish   <= 0;
 		cmd         <= 0;
@@ -238,10 +239,10 @@ always @(posedge clk_spi) begin
 
 	if(old_sck & ~sck & ~ss) begin
 		tx_finish <= 0;
-		miso <= 1;				// default: send 1's (busy/wait)
+		miso <= '1;				// default: send 1's (busy/wait)
 
 		if(byte_cnt == 5+NCR) begin
-			miso <= reply[~bit_cnt];
+			miso <= OCTAL ? reply[SW:0] : reply[~bit_cnt];
 
 			if(bit_cnt == 7) begin
 				// these three commands all have a reply_len of 0 and will thus
@@ -249,11 +250,11 @@ always @(posedge clk_spi) begin
 
 				// CMD9: SEND_CSD
 				// CMD10: SEND_CID
-				if((cmd == 'h49) | (cmd ==  'h4a))
+				if(cmd == 9 || cmd == 10)
 					read_state <= RD_STATE_SEND_TOKEN;      // jump directly to data transmission
 						
 				// CMD17/CMD18
-				if((cmd == 'h51) | (cmd == 'h52)) begin
+				if(cmd == 17 || cmd == 18) begin
 					spi_buf <= 0;
 					sd_buf  <= 0;
 					sd_lba  <= csd_sdhc ? new_lba : {9'd0, new_lba[31:9]};
@@ -261,10 +262,10 @@ always @(posedge clk_spi) begin
 				end
 			end
 		end
-		else if((reply_len > 0) && (byte_cnt == 5+NCR+1)) miso <= reply0[~bit_cnt];
-		else if((reply_len > 1) && (byte_cnt == 5+NCR+2)) miso <= reply1[~bit_cnt];
-		else if((reply_len > 2) && (byte_cnt == 5+NCR+3)) miso <= reply2[~bit_cnt];
-		else if((reply_len > 3) && (byte_cnt == 5+NCR+4)) miso <= reply3[~bit_cnt];
+		else if((reply_len > 0) && (byte_cnt == 5+NCR+1)) miso <= OCTAL ? reply0[SW:0] : reply0[~bit_cnt];
+		else if((reply_len > 1) && (byte_cnt == 5+NCR+2)) miso <= OCTAL ? reply1[SW:0] : reply1[~bit_cnt];
+		else if((reply_len > 2) && (byte_cnt == 5+NCR+3)) miso <= OCTAL ? reply2[SW:0] : reply2[~bit_cnt];
+		else if((reply_len > 3) && (byte_cnt == 5+NCR+4)) miso <= OCTAL ? reply3[SW:0] : reply3[~bit_cnt];
 		else begin
 			if(byte_cnt > 5+NCR && read_state==RD_STATE_IDLE && write_state==WR_STATE_IDLE) tx_finish <= 1;
 		end
@@ -277,12 +278,12 @@ always @(posedge clk_spi) begin
 
 			// waiting for io controller to return data
 			RD_STATE_WAIT_IO: begin
-				if((sd_buf != spi_buf) & (bit_cnt == 7)) read_state <= RD_STATE_SEND_TOKEN;
+				if(sd_buf != spi_buf && bit_cnt == 7) read_state <= RD_STATE_SEND_TOKEN;
 			end
 
 			// send data token
 			RD_STATE_SEND_TOKEN: begin
-				miso <= READ_DATA_TOKEN[~bit_cnt];
+				miso <= OCTAL ? READ_DATA_TOKEN[SW:0] : READ_DATA_TOKEN[~bit_cnt];
 	
 				if(bit_cnt == 7) begin
 					read_state <= RD_STATE_SEND_DATA;   // next: send data
@@ -293,19 +294,20 @@ always @(posedge clk_spi) begin
 			// send data
 			RD_STATE_SEND_DATA: begin
 
-				miso <= (cmd == 'h49) ? CSD[{buffer_ptr[3:0],~bit_cnt}] : (cmd == 'h4A) ? CID[{buffer_ptr[3:0],~bit_cnt}] : buffer_dout[~bit_cnt];
+				if(OCTAL) miso <= (cmd == 9) ? CSD[{buffer_ptr[3:0],3'd0} +:8] : (cmd == 10) ? CID[{buffer_ptr[3:0],3'd0} +:8] : buffer_dout;
+				else      miso <= (cmd == 9) ? CSD[{buffer_ptr[3:0],~bit_cnt}] : (cmd == 10) ? CID[{buffer_ptr[3:0],~bit_cnt}] : buffer_dout[~bit_cnt];
 
 				if(bit_cnt == 7) begin
 
 					// sent 512 sector data bytes?
-					if((cmd == 'h51) & &buffer_ptr) read_state <= RD_STATE_IDLE;
-					else if((cmd == 'h52) & &buffer_ptr) begin
+					if(cmd == 17 && &buffer_ptr) read_state <= RD_STATE_IDLE;
+					else if(cmd == 18 && &buffer_ptr) begin
 						read_state <= RD_STATE_WAIT_M;
 						wait_m_cnt <= 0;
 					end
 
 					// sent 16 cid/csd data bytes?
-					else if(((cmd == 'h49) | (cmd == 'h4a)) & (&buffer_ptr[3:0])) read_state <= RD_STATE_IDLE;
+					else if((cmd == 9 || cmd == 10) && &buffer_ptr[3:0]) read_state <= RD_STATE_IDLE;
 
 					// not done yet -> trigger read of next data byte
 					else buffer_ptr <= buffer_ptr + 1'd1;
@@ -325,36 +327,30 @@ always @(posedge clk_spi) begin
 
 		// ------------------ write support ----------------------
 		// send write data response
-		if(write_state == WR_STATE_SEND_DRESP) miso <= WRITE_DATA_RESPONSE[~bit_cnt];
+		if(write_state == WR_STATE_SEND_DRESP) miso <= OCTAL ? WRITE_DATA_RESPONSE[SW:0] : WRITE_DATA_RESPONSE[~bit_cnt];
 
 		// busy after write until the io controller sends ack
 		if(write_state == WR_STATE_BUSY) miso <= 0;
    end
 
 	if(~old_sck & sck & ~ss) begin
-
-	   if(synced) bit_cnt <= bit_cnt + 1'd1;
-
-		// assemble byte
-		if(bit_cnt != 7) begin
-			sbuf[6:0] <= { sbuf[5:0], mosi };
-
+		if(bit_cnt != 7 && !OCTAL) begin
 			// resync while waiting for token
-			if(write_state==WR_STATE_EXP_DTOKEN) begin
-				if(cmd == 'h58) begin
-					if({sbuf,mosi} == 8'hfe) begin
+			if(write_state == WR_STATE_EXP_DTOKEN) begin
+				if(cmd == 24) begin
+					if(ibuf == 8'hfe) begin
 						write_state <= WR_STATE_RECV_DATA;
 						buffer_ptr <= 0;
 						bit_cnt <= 0;
 					end
 				end
 				else begin
-					if({sbuf,mosi} == 8'hfc) begin
+					if(ibuf == 8'hfc) begin
 						write_state <= WR_STATE_RECV_DATA;
 						buffer_ptr <= 0;
 						bit_cnt <= 0;
 					end
-					if({sbuf,mosi} == 8'hfd) begin
+					if(ibuf == 8'hfd) begin
 						write_state <= WR_STATE_IDLE;
 						rx_finish <= 1;
 						bit_cnt <= 0;
@@ -370,26 +366,24 @@ always @(posedge clk_spi) begin
 			// byte_cnt > 6 -> complete command received
 			// first byte of valid command is 01xxxxxx
 			// don't accept new commands once a write or read command has been accepted
- 			if((byte_cnt > 5) & (write_state == WR_STATE_IDLE) & (read_state == RD_STATE_IDLE) && !rx_finish) begin
+ 			if(byte_cnt > 5 && write_state == WR_STATE_IDLE && read_state == RD_STATE_IDLE && (OCTAL || !rx_finish) && ibuf[7:6] == 1) begin
 				byte_cnt <= 0;
-				cmd <= { sbuf, mosi};
-
-			   // set cmd55 flag if previous command was 55
-			   cmd55 <= (cmd == 'h77);
+				cmd      <= ibuf[5:0];
+				cmd55    <= (cmd == 55); // set cmd55 flag if previous command was 55
 			end
 
- 			if((byte_cnt > 5) & (read_state != RD_STATE_IDLE) && ({sbuf, mosi} == 8'h4c)) begin
-				byte_cnt <= 0;
-				rx_finish <= 0;
-				cmd <= {sbuf, mosi};
+ 			if(byte_cnt > 5 && read_state != RD_STATE_IDLE && ibuf == 8'h4c) begin
+				byte_cnt   <= 0;
+				rx_finish  <= 0;
+				cmd        <= 12;
 				read_state <= RD_STATE_IDLE;
 			end
 
 			// parse additional command bytes
-			if(byte_cnt == 0) new_lba[31:24] <= { sbuf, mosi};
-			if(byte_cnt == 1) new_lba[23:16] <= { sbuf, mosi};
-			if(byte_cnt == 2) new_lba[15:8]  <= { sbuf, mosi};
-			if(byte_cnt == 3) new_lba[7:0]   <= { sbuf, mosi};
+			if(byte_cnt == 0) new_lba[31:24] <= ibuf;
+			if(byte_cnt == 1) new_lba[23:16] <= ibuf;
+			if(byte_cnt == 2) new_lba[15:8]  <= ibuf;
+			if(byte_cnt == 3) new_lba[7:0]   <= ibuf;
 
 			// last byte (crc) received, evaluate
 			if(byte_cnt == 4) begin
@@ -401,13 +395,13 @@ always @(posedge clk_spi) begin
 
 				case(cmd)
 					// CMD0: GO_IDLE_STATE
-					'h40: reply <= 1;    // ok, busy
+					 0: reply <= 1;    // ok, busy
 
 					// CMD1: SEND_OP_COND
-					'h41: reply <= 0;    // ok, not busy
+					 1: reply <= 0;    // ok, not busy
 
 					// CMD8: SEND_IF_COND (V2 only)
-					'h48: begin
+					 8: begin
 							reply  <= 1;   // ok, busy
 
 							reply0 <= 'h00;
@@ -418,41 +412,41 @@ always @(posedge clk_spi) begin
 						end
 
 					// CMD9: SEND_CSD
-					'h49: reply <= 0;    // ok
+					 9: reply <= 0;    // ok
 
 					// CMD10: SEND_CID
-					'h4a: reply <= 0;    // ok
+					10: reply <= 0;    // ok
 
 					// CMD12: STOP_TRANSMISSION 
-					'h4c: reply <= 0;    // ok
+					12: reply <= 0;    // ok
 					
 					// CMD13: SEND_STATUS 
-					'h4d: begin
+					13: begin
 					        reply <= 'h00;    // ok 
 							  reply0 <='h00;
 							  reply_len <= 1;
 					      end
 
 					// CMD16: SET_BLOCKLEN
-					'h50: begin
+					16: begin
 							// we only support a block size of 512
 							if(new_lba == 512) reply <= 0;  // ok
 								else reply <= 'h40;         // parmeter error
 						end
 
 					// CMD17: READ_SINGLE_BLOCK
-					'h51: reply <= 0;    // ok
+					17: reply <= 0;    // ok
 
 					// CMD18: READ_MULTIPLE
-					'h52: reply <= 0;    // ok
+					18: reply <= 0;    // ok
 
 					// ACMD23:  SET_WR_BLK_ERASE_COUNT
-					'h57: reply <= 0;     //ok
+					23: reply <= 0;     //ok
 
 					// CMD24: WRITE_BLOCK
-					'h58,
+					24,
 					// CMD25: WRITE_MULTIPLE
-					'h59: begin
+					25: begin
 							reply <= 0;    // ok
 							write_state <= WR_STATE_EXP_DTOKEN;  // expect data token
 							rx_finish <=0;
@@ -462,13 +456,13 @@ always @(posedge clk_spi) begin
 						end
 
 					// ACMD41: APP_SEND_OP_COND
-					'h69: if(cmd55) reply <= 0;    // ok, not busy
+					41: if(cmd55) reply <= 0;    // ok, not busy
 
 					// CMD55: APP_COND
-					'h77: reply <= 1;    // ok, busy
+					55: reply <= 1;    // ok, busy
 
 					// CMD58: READ_OCR
-					'h7a: begin
+					58: begin
 							reply <= 0;    // ok
 
 							reply0 <= OCR[31:24];   // bit 30 = 1 -> high capacity card
@@ -479,7 +473,7 @@ always @(posedge clk_spi) begin
 						end
 
 					// CMD59: CRC_ON_OFF
-					'h7b: reply <= 0;    // ok
+					59: reply <= 0;    // ok
 				endcase
 			end
 
@@ -491,12 +485,12 @@ always @(posedge clk_spi) begin
 				// waiting for data token
 				WR_STATE_EXP_DTOKEN: begin
 					buffer_ptr <= 0;
-					if(cmd == 'h58) begin
-						if({sbuf,mosi} == 8'hfe) write_state <= WR_STATE_RECV_DATA;
+					if(cmd == 24) begin
+						if(ibuf == 8'hfe) write_state <= WR_STATE_RECV_DATA;
 					end
 					else begin
-						if({sbuf,mosi} == 8'hfc) write_state <= WR_STATE_RECV_DATA;
-						if({sbuf,mosi} == 8'hfd) begin
+						if(ibuf == 8'hfc) write_state <= WR_STATE_RECV_DATA;
+						if(ibuf == 8'hfd) begin
 							write_state <= WR_STATE_IDLE;
 							rx_finish <= 1;
 						end
@@ -507,7 +501,7 @@ always @(posedge clk_spi) begin
 				WR_STATE_RECV_DATA: begin
 					// push one byte into local buffer
 					buffer_wr  <= 1;
-					buffer_din <= {sbuf, mosi};
+					buffer_din <= ibuf;
 
 					// all bytes written?
 					if(&buffer_ptr) write_state <= WR_STATE_RECV_CRC0;
@@ -531,7 +525,7 @@ always @(posedge clk_spi) begin
 				// wait for io controller to accept data
 				WR_STATE_BUSY:
 					if(spi_buf == sd_buf) begin
-						if(cmd == 'h59) begin
+						if(cmd == 25) begin
 							write_state <= WR_STATE_EXP_DTOKEN;
 							sd_lba <= sd_lba + 1;
 						end
@@ -542,17 +536,29 @@ always @(posedge clk_spi) begin
 					end
 			endcase
 		end
-		
-		// wait for first 0 bit until start counting bits
-		if(!synced && !mosi) begin
-			synced   <= 1;
-			bit_cnt  <= 1; // byte assembly prepare for next time loop
-			sbuf     <= 7'b1111110; // byte assembly prepare for next time loop
-			rx_finish<= 0;
-		end else if (synced && tx_finish && rx_finish ) begin
-			synced   <= 0;
-			bit_cnt  <= 0;
-			rx_finish<= 0;
+
+		if(!OCTAL) begin
+			if(reset || !idle_cnt) begin
+				synced <= 0;
+				sbuf   <= 7'b1111111;
+			end
+
+			// wait for first 0 bit until start counting bits
+			if(~synced && sbuf == 7'b1111101) begin
+				synced   <= 1;
+				bit_cnt  <= 3;
+				rx_finish<= 0;
+			end
+			else if(synced) begin
+				bit_cnt <= bit_cnt + 1'd1;
+				if(tx_finish && rx_finish ) begin
+					synced   <= 0;
+					bit_cnt  <= 0;
+					rx_finish<= 0;
+				end
+			end
+
+			sbuf[6:0] <= {sbuf[5:0],mosi};
 		end
 	end
 end
