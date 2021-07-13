@@ -369,13 +369,13 @@ always@(posedge clk_sys) begin : uio_block
 
 				// send sector IO -> FPGA
 				// flag that download begins
-				'hX17: begin
+				'h0X17: begin
 							sd_buff_dout <= io_din[DW:0];
 							b_wr <= 1;
 						end
 
 				// reading sd card write data
-				'hX18: begin
+				'h0X18: begin
 							if(~&sd_buff_addr) sd_buff_addr <= sd_buff_addr + 1'b1;
 							io_dout <= sd_buff_din[sdn_ack];
 						end
