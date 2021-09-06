@@ -104,6 +104,7 @@ module hps_io #(parameter CONF_STR, CONF_STR_BRAM=1, PS2DIV=0, WIDE=0, VDNUM=1, 
 	output reg [26:0] ioctl_addr,         // in WIDE mode address will be incremented by 2
 	output reg [DW:0] ioctl_dout,
 	output reg        ioctl_upload = 0,   // signal indicating an active upload
+	input             ioctl_upload_req,
 	input      [DW:0] ioctl_din,
 	output reg        ioctl_rd,
 	output reg [31:0] ioctl_file_ext,
@@ -250,6 +251,8 @@ always@(posedge clk_sys) begin : uio_block
 	reg  [3:0] stflg = 0;
 	reg [63:0] status_req;
 	reg        old_status_set = 0;
+	reg        old_upload_req = 0;
+	reg        upload_req = 0;
 	reg        old_info = 0;
 	reg  [7:0] info_n = 0;
 	reg [15:0] tmp1;
@@ -261,6 +264,9 @@ always@(posedge clk_sys) begin : uio_block
 		stflg <= stflg + 1'd1;
 		status_req <= status_in;
 	end
+	
+	old_upload_req <= ioctl_upload_req;
+	if(~old_upload_req & ioctl_upload_req) upload_req <= 1;
 
 	old_info <= info_req;
 	if(~old_info & info_req) info_n <= info;
@@ -308,6 +314,7 @@ always@(posedge clk_sys) begin : uio_block
 				  'h32: io_dout <= gamma_bus[21];
 				  'h36: begin io_dout <= info_n; info_n <= 0; end
 				  'h39: io_dout <= 1;
+				  'h3C: if(upload_req) begin io_dout <= 1; upload_req <= 0; end
 			endcase
 
 			sd_buff_addr <= 0;
