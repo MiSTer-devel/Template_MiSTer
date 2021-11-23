@@ -278,7 +278,7 @@ always @(posedge CLK_VIDEO) begin
 	reg old_vs, old_de;
 
 	ram_wr <= 0;
-	if(CE_PIXEL) begin
+	if(CE_PIXEL && FB_EN) begin
 		old_vs <= VGA_VS;
 		old_de <= VGA_DE;
 
