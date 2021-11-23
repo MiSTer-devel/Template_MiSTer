@@ -224,11 +224,11 @@ endfunction
 always @(posedge CLK_VIDEO) begin
 	do_flip <= no_rotate && flip;
 	if( do_flip ) begin
-		FB_WIDTH  = hsz;
-		FB_HEIGHT = vsz;
+		FB_WIDTH  <= hsz;
+		FB_HEIGHT <= vsz;
 	end else begin
-		FB_WIDTH  = vsz;
-		FB_HEIGHT = hsz;
+		FB_WIDTH  <= vsz;
+		FB_HEIGHT <= hsz;
 	end
 end
 
