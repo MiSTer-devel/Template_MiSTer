@@ -335,7 +335,10 @@ always@(posedge clk_sys) begin
 
 	old_strobe <= io_strobe;
 	coef_wr <= 0;
+
+`ifndef MISTER_DEBUG_NOHDMI
 	shadowmask_wr <= 0;
+`endif
 
 	if(~io_uio) begin
 		has_cmd <= 0;
@@ -453,7 +456,10 @@ always@(posedge clk_sys) begin
 					 3: arc2y <= io_din[12:0];
 				endcase
 			end
+
+`ifndef MISTER_DEBUG_NOHDMI
 			if(cmd == 'h3E) {shadowmask_wr,shadowmask_data} <= {1'b1, io_din};
+`endif
 		end
 	end
 
