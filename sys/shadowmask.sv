@@ -107,26 +107,25 @@ always @(posedge clk) begin
     reg [23:0] dout1, dout2;
     reg de1,de2,vs1,vs2,hs1,hs2;
     reg [8:0] r2, g2, b2; //9 bits to handle overflow when we add to bright colors.
-    reg [7:0] r3, g3, b3; //These are the final colors.
+    reg [8:0] r3, g3, b3; //These are the final colors.
 
     {rbit,gbit, bbit} = mask_lut[{vindex2[2:0],hindex2[2:0]}];
 
+    r2 <= r;
+    g2 <= g;
+    b2 <= b;
+
     // I add 12.5% of the Color value and then subrtact 50% if the mask should be dark
-    r2 <= r + {3'b0, r[7:3]} - (rbit ?  9'b0 : {2'b0, r[7:1]});
-    g2 <= g + {3'b0, g[7:3]} - (gbit ?  9'b0 : {2'b0, g[7:1]});
-    b2 <= b + {3'b0, b[7:3]} - (bbit ?  9'b0 : {2'b0, b[7:1]});
+    r3 <= r2 + (~mask_enable ? 9'd0: {3'b0, r2[8:3]}) - ((~mask_enable | rbit) ?  9'b0 : {1'b0, r2[8:1]});
+    g3 <= g2 + (~mask_enable ? 9'd0: {3'b0, g2[8:3]}) - ((~mask_enable | gbit) ?  9'b0 : {1'b0, g2[8:1]});
+    b3 <= b2 + (~mask_enable ? 9'd0: {3'b0, b2[8:3]}) - ((~mask_enable | bbit) ?  9'b0 : {1'b0, b2[8:1]});
 
     // Because a pixel can be brighter than 255 we have to clamp the value to 255.
-    r3 <= r2[8] ? 8'd255 : r2[7:0];
-    g3 <= g2[8] ? 8'd255 : g2[7:0];
-    b3 <= b2[8] ? 8'd255 : b2[7:0];
+    dout <= {{8{r3[8]}} | r3[7:0], {8{g3[8]}} | g3[7:0], {8{b3[8]}} | b3[7:0]};
 
-    // I don't know how to keep the color aligned with the sync to avoid a shift.
-    // This code is left over from the original hdmi scanlines code.
-    dout <= ~mask_enable ? {r,g,b} : {r3 ,g3, b3};
-    vs_out <= mask_enable ? vs2 : vs_in;   vs2   <= vs1;   vs1   <= vs_in;
-    hs_out <= mask_enable ? hs2 : hs_in;   hs2   <= hs1;   hs1   <= hs_in;
-    de_out <= mask_enable ? de2 : de_in;   de2   <= de1;   de1   <= de_in;
+    vs_out <= vs2;   vs2 <= vs1;   vs1 <= vs_in;
+    hs_out <= hs2;   hs2 <= hs1;   hs1 <= hs_in;
+    de_out <= de2;   de2 <= de1;   de1 <= de_in;
 end
 
 // 000_000_000_000_000_
