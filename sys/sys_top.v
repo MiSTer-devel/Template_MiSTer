@@ -1105,6 +1105,7 @@ shadowmask HDMI_shadowmask
 	.hs_in(hdmi_hs_sl),
 	.vs_in(hdmi_vs_sl),
 	.de_in(hdmi_de_sl),
+	.enable(~LFB_EN),
 	
 	.dout(hdmi_data_mask),
 	.hs_out(hdmi_hs_mask),

@@ -9,6 +9,7 @@ module shadowmask
     input      [23:0] din,
     input             hs_in,vs_in,
     input             de_in,
+    input             enable,
 
     output reg [23:0] dout,
     output reg        hs_out,vs_out,
@@ -98,6 +99,8 @@ reg [23:0] d;
 // The last two entries of the top row "5,3" are the size of the mask. In this case
 // "5,3," means this pattern is 6x4 pixels.
 
+reg m_enable;
+always @(posedge clk) m_enable <= mask_enable & enable;
 
 reg [2:0] mask_lut[64];
 
@@ -116,9 +119,9 @@ always @(posedge clk) begin
     b2 <= b;
 
     // I add 12.5% of the Color value and then subrtact 50% if the mask should be dark
-    r3 <= r2 + (~mask_enable ? 9'd0: {3'b0, r2[8:3]}) - ((~mask_enable | rbit) ?  9'b0 : {1'b0, r2[8:1]});
-    g3 <= g2 + (~mask_enable ? 9'd0: {3'b0, g2[8:3]}) - ((~mask_enable | gbit) ?  9'b0 : {1'b0, g2[8:1]});
-    b3 <= b2 + (~mask_enable ? 9'd0: {3'b0, b2[8:3]}) - ((~mask_enable | bbit) ?  9'b0 : {1'b0, b2[8:1]});
+    r3 <= r2 + (~m_enable ? 9'd0: {3'b0, r2[8:3]}) - ((~m_enable | rbit) ?  9'b0 : {1'b0, r2[8:1]});
+    g3 <= g2 + (~m_enable ? 9'd0: {3'b0, g2[8:3]}) - ((~m_enable | gbit) ?  9'b0 : {1'b0, g2[8:1]});
+    b3 <= b2 + (~m_enable ? 9'd0: {3'b0, b2[8:3]}) - ((~m_enable | bbit) ?  9'b0 : {1'b0, b2[8:1]});
 
     // Because a pixel can be brighter than 255 we have to clamp the value to 255.
     dout <= {{8{r3[8]}} | r3[7:0], {8{g3[8]}} | g3[7:0], {8{b3[8]}} | b3[7:0]};
