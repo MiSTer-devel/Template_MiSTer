@@ -1064,7 +1064,7 @@ wire        hdmi_de_sl, hdmi_vs_sl, hdmi_hs_sl;
 reg dis_output;
 always @(posedge clk_hdmi) begin
 	reg dis;
-	dis <= fb_force_blank;
+	dis <= fb_force_blank & ~LFB_EN;
 	dis_output <= dis;
 end
 `else
@@ -1075,7 +1075,7 @@ scanlines #(1) HDMI_scanlines
 (
 	.clk(clk_hdmi),
 
-	.scanlines(scanlines),
+	.scanlines(LFB_EN ? 2'b00 : scanlines),
 	.din(dis_output ? 24'd0 : hdmi_data),
 	.hs_in(hdmi_hs),
 	.vs_in(hdmi_vs),
@@ -1106,7 +1106,7 @@ shadowmask HDMI_shadowmask
 	.vs_in(hdmi_vs_sl),
 	.de_in(hdmi_de_sl),
 	.enable(~LFB_EN),
-	
+
 	.dout(hdmi_data_mask),
 	.hs_out(hdmi_hs_mask),
 	.vs_out(hdmi_vs_mask),
