@@ -458,6 +458,7 @@ ARCHITECTURE rtl OF ascal IS
   SIGNAL o_hacc,o_hacc_ini,o_hacc_next,o_vacc,o_vacc_next,o_vacc_ini : natural RANGE 0 TO 4*OHRES-1;
   SIGNAL o_hsv,o_vsv,o_dev,o_pev,o_end : unsigned(0 TO 5);
   SIGNAL o_hsp,o_vss : std_logic;
+  SIGNAL o_vcarrym,o_prim : boolean;
   SIGNAL o_read,o_read_pre : std_logic;
   SIGNAL o_readlev,o_copylev : natural RANGE 0 TO 2;
   SIGNAL o_hburst,o_hbcpt : natural RANGE 0 TO 31;
@@ -485,6 +486,7 @@ ARCHITECTURE rtl OF ascal IS
   SIGNAL o_divstart : std_logic;
   SIGNAL o_divrun : std_logic;
   SIGNAL o_hacpt,o_vacpt : unsigned(11 DOWNTO 0);
+  SIGNAL o_vacptl : unsigned(1 DOWNTO 0);
   
   -----------------------------------------------------------------------------
   FUNCTION shift_ishift(shift : unsigned(0 TO 119);
@@ -1886,35 +1888,51 @@ BEGIN
             o_state<=sHSYNC;
             o_hsp<='0';
           END IF;
+          o_prim<=true;
+          o_vcarrym<=false;
           
           --------------------------------------------------
         WHEN sHSYNC =>
-          dif_v:=(o_vacc_next - 2*o_vsize + 16384) MOD 16384;
+          dif_v :=(o_vacc_next - 2*o_vsize + 16384) MOD 16384;
+          IF o_prim THEN
+            IF dif_v>=8192 THEN
+              o_vacc     <=o_vacc_next;
+            ELSE
+              o_vacc     <=dif_v;
+            END IF;
+          END IF;
           IF dif_v>=8192 THEN
-            o_vacc     <=o_vacc_next;
             o_vacc_next<=(o_vacc_next + 2*o_ivsize) MOD 8192;
             vcarry_v:=false;
           ELSE
-            o_vacc     <=dif_v;
-            o_vacc_next<=(dif_v + 2*o_ivsize + 8192) MOD 8192;
+            o_vacc_next<=dif_v;
             vcarry_v:=true;
           END IF;
-          o_divstart<='1';
+          
           IF o_vcpt_pre2=o_vmin THEN
             o_vacc     <=o_vacc_ini;
             o_vacc_next<=o_vacc_ini + 2*o_ivsize;
-            o_vacpt<=x"001";
+            o_vacpt <=x"001";
+            o_vacptl<="01";
             vcarry_v:=false;
           END IF;
           
           IF vcarry_v THEN
             o_vacpt<=o_vacpt+1;
           END IF;
+          IF vcarry_v AND o_prim THEN
+            o_vacptl<=o_vacptl+1;
+          END IF;
+          o_vcarrym <= o_vcarrym OR vcarry_v;
+          o_prim <= false;
           o_hbcpt<=0; -- Clear burst counter on line
-          IF (o_vpe='1' AND vcarry_v) OR o_fload>0 THEN
-            o_state<=sREAD;
-          ELSE
-            o_state<=sDISP;
+          o_divstart<=to_std_logic(NOT vcarry_v);
+          IF NOT vcarry_v  OR o_fload>0 THEN
+            IF (o_vpe='1' AND o_vcarrym) OR o_fload>0 THEN
+              o_state<=sREAD;
+            ELSE
+              o_state<=sDISP;
+            END IF;
           END IF;
           
         WHEN sREAD =>
@@ -1964,7 +1982,7 @@ BEGIN
           o_alt<="0100";
         ELSE
           o_adrs<=to_unsigned(o_adrs_pre + (o_hbcpt * N_BURST),32);
-          o_alt<=altx(o_vacpt(1 DOWNTO 0) + 1);
+          o_alt<=altx(o_vacptl + 1);
         END IF;
       END IF;
       
@@ -2467,7 +2485,7 @@ BEGIN
         
         -- CYCLE 2 -----------------------------------------
         -- Lines reordering
-        CASE o_vacpt(1 DOWNTO 0) IS
+        CASE o_vacptl IS
           WHEN "10"   => pixq_v:=(o_ldr0,o_ldr1,o_ldr2,o_ldr3);
           WHEN "11"   => pixq_v:=(o_ldr1,o_ldr2,o_ldr3,o_ldr0);
           WHEN "00"   => pixq_v:=(o_ldr2,o_ldr3,o_ldr0,o_ldr1);
