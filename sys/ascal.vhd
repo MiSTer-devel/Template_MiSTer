@@ -707,6 +707,7 @@ ARCHITECTURE rtl OF ascal IS
   
   SIGNAL o_h_frac2,o_v_frac : unsigned(FRAC-1 DOWNTO 0);
   SIGNAL o_h_bil_pix,o_v_bil_pix : type_pix;
+  SIGNAL o_h_near_pix,o_v_near_pix : type_pix;
   
   -----------------------------------------------------------------------------
   -- Nearest + Bilinear + Sharp Bilinear
@@ -718,6 +719,7 @@ ARCHITECTURE rtl OF ascal IS
   TYPE type_bil_t IS RECORD
     r,g,b : unsigned(8+FRAC DOWNTO 0);
   END RECORD;
+  
   FUNCTION bil_calc(f : unsigned(FRAC-1 DOWNTO 0);
                     p : arr_pix(0 TO 3)) RETURN type_bil_t IS
     VARIABLE fp,fn : unsigned(FRAC DOWNTO 0);
@@ -725,7 +727,7 @@ ARCHITECTURE rtl OF ascal IS
     VARIABLE x : type_bil_t;
     CONSTANT Z : unsigned(FRAC-1 DOWNTO 0):=(OTHERS =>'0');
   BEGIN
-    fp:='0' & f;
+    fp:=('0' & f) + (Z & f(FRAC-1));
     fn:=('1' & Z) - fp;
     u:=p(2).r * fp + p(1).r * fn;
     x.r:=u;
@@ -735,7 +737,27 @@ ARCHITECTURE rtl OF ascal IS
     x.b:=u;
     RETURN x;
   END FUNCTION;
+  
+  FUNCTION near_calc(f : unsigned(FRAC-1 DOWNTO 0);
+                    p : arr_pix(0 TO 3)) RETURN type_bil_t IS
+    VARIABLE fp,fn : unsigned(FRAC DOWNTO 0);
+    VARIABLE u : unsigned(8+FRAC DOWNTO 0);
+    VARIABLE x : type_bil_t;
+    CONSTANT Z : unsigned(FRAC-1 DOWNTO 0):=(OTHERS =>'0');
+  BEGIN
+    IF f(FRAC-1)='0' THEN
+      x.r := '0' & p(1).r & Z;
+      x.g := '0' & p(1).g & Z;
+      x.b := '0' & p(1).b & Z;
+    ELSE
+      x.r := '0' & p(2).r & Z;
+      x.g := '0' & p(2).g & Z;
+      x.b := '0' & p(2).b & Z;
+    END IF;
+    RETURN x;
+  END FUNCTION;
   SIGNAL o_h_bil_t,o_v_bil_t : type_bil_t;
+  SIGNAL o_h_near_t,o_v_near_t : type_bil_t;
   SIGNAL i_h_bil_t : type_bil_t;
   
   -----------------------------------------------------------------------------
@@ -2276,33 +2298,34 @@ BEGIN
       
       o_hpixq<=(o_hpix3,o_hpix2,o_hpix1,o_hpix0);
       
-      -- NEAREST / BILINEAR / SHARP BILINEAR ---------------
+      -- NEAREST -------------------------------------------
+      o_h_near_t<=near_calc(o_h_frac2,o_hpixq);
+      
+      -- C4 : Nearest
+      o_h_near_pix.r<=o_h_near_t.r(7+FRAC DOWNTO FRAC);
+      o_h_near_pix.g<=o_h_near_t.g(7+FRAC DOWNTO FRAC);
+      o_h_near_pix.b<=o_h_near_t.b(7+FRAC DOWNTO FRAC);
+      
+      -- BILINEAR / SHARP BILINEAR ---------------
       -- C1 : Pre-calc Sharp Bilinear
       o_h_sbil_t<=sbil_frac1(o_hfrac1);
       
       -- C2 : Select
       o_h_frac2<=(OTHERS =>'0');
-      CASE o_hmode(1 DOWNTO 0) IS
-        WHEN "00" => -- Nearest
-          IF MASK(MASK_NEAREST)='1' THEN
-            o_h_frac2<=near_frac(o_hfrac2);
-          END IF;
-        WHEN "01" => -- Bilinear
-          IF MASK(MASK_BILINEAR)='1' THEN
-            o_h_frac2<=bil_frac(o_hfrac2);
-          END IF;
-        WHEN "10" => -- Sharp Bilinear
-          IF MASK(MASK_SHARP_BILINEAR)='1' THEN
-            o_h_frac2<=sbil_frac2(o_hfrac2,o_h_sbil_t);
-          END IF;
-        WHEN OTHERS =>
-          NULL;
-      END CASE;
-      
+      IF o_hmode(0)='1' THEN -- Bilinear
+        IF MASK(MASK_BILINEAR)='1' THEN
+          o_h_frac2<=bil_frac(o_hfrac2);
+        END IF;
+      ELSE -- Sharp Bilinear
+        IF MASK(MASK_SHARP_BILINEAR)='1' THEN
+          o_h_frac2<=sbil_frac2(o_hfrac2,o_h_sbil_t);
+        END IF;
+      END IF;
+     
       -- C3 : Opposite frac
       o_h_bil_t<=bil_calc(o_h_frac2,o_hpixq);
       
-      -- C4 : Nearest / Bilinear / Sharp Bilinear
+      -- C4 : Bilinear / Sharp Bilinear
       o_h_bil_pix.r<=bound(o_h_bil_t.r,8+FRAC);
       o_h_bil_pix.g<=bound(o_h_bil_t.g,8+FRAC);
       o_h_bil_pix.b<=bound(o_h_bil_t.b,8+FRAC);
@@ -2340,9 +2363,12 @@ BEGIN
       o_ldw<=(x"00",x"00",x"00");
       
       CASE o_hmode(2 DOWNTO 0) IS
-        WHEN "000" | "001" | "010" => -- Nearest | Bilinear | Sharp Bilinear
-          IF MASK(MASK_NEAREST)='1' OR
-             MASK(MASK_BILINEAR)='1' OR
+        WHEN "000"  => -- Nearest
+          IF MASK(MASK_NEAREST)='1' THEN
+            o_ldw<=o_h_near_pix;
+         END IF;
+        WHEN "001" | "010" => -- Bilinear | Sharp Bilinear
+          IF MASK(MASK_BILINEAR)='1' OR
              MASK(MASK_SHARP_BILINEAR)='1' THEN
             o_ldw<=o_h_bil_pix;
          END IF;
@@ -2461,31 +2487,33 @@ BEGIN
         
         o_vpixq1<=o_vpixq;
         
-        -- NEAREST / BILINEAR / SHARP BILINEAR -------------
+        -- NEAREST -----------------------------------------
+        o_v_near_t<=near_calc(o_v_frac,o_vpixq1);
+        
+        -- C6 : Nearest
+        o_v_near_pix.r<=o_v_near_t.r(7+FRAC DOWNTO FRAC);
+        o_v_near_pix.g<=o_v_near_t.g(7+FRAC DOWNTO FRAC);
+        o_v_near_pix.b<=o_v_near_t.b(7+FRAC DOWNTO FRAC);
+        
+        -- BILINEAR / SHARP BILINEAR -----------------------
         -- C3 : Pre-calc Sharp Bilinear
         o_v_sbil_t<=sbil_frac1(o_vfrac);
         
         -- C4 : Select
         o_v_frac<=(OTHERS =>'0');
-        CASE o_vmode(1 DOWNTO 0) IS
-          WHEN "00" => -- Nearest
-            IF MASK(MASK_NEAREST)='1' THEN
-              o_v_frac<=near_frac(o_vfrac);
-            END IF;
-          WHEN "01" => -- Bilinear
-            IF MASK(MASK_BILINEAR)='1' THEN
-              o_v_frac<=bil_frac(o_vfrac);
-            END IF;
-          WHEN "10" => -- Sharp Bilinear
-            IF MASK(MASK_SHARP_BILINEAR)='1' THEN
-              o_v_frac<=sbil_frac2(o_vfrac,o_v_sbil_t);
-            END IF;
-          WHEN OTHERS => NULL;
-        END CASE;
+        IF o_vmode(0)='1' THEN -- Bilinear
+          IF MASK(MASK_BILINEAR)='1' THEN
+            o_v_frac<=bil_frac(o_vfrac);
+          END IF;
+        ELSE  -- Sharp Bilinear
+          IF MASK(MASK_SHARP_BILINEAR)='1' THEN
+            o_v_frac<=sbil_frac2(o_vfrac,o_v_sbil_t);
+          END IF;
+        END IF;
         
         o_v_bil_t<=bil_calc(o_v_frac,o_vpixq1);
         
-        -- C6 : Nearest / Bilinear / Sharp Bilinear
+        -- C6 : Bilinear / Sharp Bilinear
         o_v_bil_pix.r<=bound(o_v_bil_t.r,8+FRAC);
         o_v_bil_pix.g<=bound(o_v_bil_t.g,8+FRAC);
         o_v_bil_pix.b<=bound(o_v_bil_t.b,8+FRAC);
@@ -2526,9 +2554,14 @@ BEGIN
         o_b<=x"00";
             
         CASE o_vmode(2 DOWNTO 0) IS
-          WHEN "000" | "001" | "010" => -- Nearest | Bilinear | Sharp Bilinear
-            IF MASK(MASK_NEAREST)='1' OR
-               MASK(MASK_BILINEAR)='1' OR
+          WHEN "000" => -- Nearest
+            IF MASK(MASK_NEAREST)='1' THEN
+              o_r<=o_v_near_pix.r;
+              o_g<=o_v_near_pix.g;
+              o_b<=o_v_near_pix.b;
+            END IF;
+          WHEN "001" | "010" => -- Bilinear | Sharp Bilinear
+            IF MASK(MASK_BILINEAR)='1' OR
                MASK(MASK_SHARP_BILINEAR)='1' THEN
               o_r<=o_v_bil_pix.r;
               o_g<=o_v_bil_pix.g;
