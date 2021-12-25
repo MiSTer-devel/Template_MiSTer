@@ -707,7 +707,8 @@ ARCHITECTURE rtl OF ascal IS
     RETURN x;
   END FUNCTION;
   
-  SIGNAL o_h_frac2,o_v_frac : unsigned(FRAC-1 DOWNTO 0);
+  SIGNAL o_h_near_frac,o_v_near_frac : unsigned(FRAC-1 DOWNTO 0);
+  SIGNAL o_h_bil_frac,o_v_bil_frac : unsigned(FRAC-1 DOWNTO 0);
   SIGNAL o_h_bil_pix,o_v_bil_pix : type_pix;
   SIGNAL o_h_near_pix,o_v_near_pix : type_pix;
   
@@ -2317,7 +2318,11 @@ BEGIN
       o_hpixq<=(o_hpix3,o_hpix2,o_hpix1,o_hpix0);
       
       -- NEAREST -------------------------------------------
-      o_h_near_t<=near_calc(o_h_frac2,o_hpixq);
+      -- C2
+      o_h_near_frac<=near_frac(o_hfrac2);
+      
+      -- C3
+      o_h_near_t<=near_calc(o_h_near_frac,o_hpixq);
       
       -- C4 : Nearest
       o_h_near_pix.r<=o_h_near_t.r(7+FRAC DOWNTO FRAC);
@@ -2329,19 +2334,19 @@ BEGIN
       o_h_sbil_t<=sbil_frac1(o_hfrac1);
       
       -- C2 : Select
-      o_h_frac2<=(OTHERS =>'0');
+      o_h_bil_frac<=(OTHERS =>'0');
       IF o_hmode(0)='1' THEN -- Bilinear
         IF MASK(MASK_BILINEAR)='1' THEN
-          o_h_frac2<=bil_frac(o_hfrac2);
+          o_h_bil_frac<=bil_frac(o_hfrac2);
         END IF;
       ELSE -- Sharp Bilinear
         IF MASK(MASK_SHARP_BILINEAR)='1' THEN
-          o_h_frac2<=sbil_frac2(o_hfrac2,o_h_sbil_t);
+          o_h_bil_frac<=sbil_frac2(o_hfrac2,o_h_sbil_t);
         END IF;
       END IF;
      
       -- C3 : Opposite frac
-      o_h_bil_t<=bil_calc(o_h_frac2,o_hpixq);
+      o_h_bil_t<=bil_calc(o_h_bil_frac,o_hpixq);
       
       -- C4 : Bilinear / Sharp Bilinear
       o_h_bil_pix.r<=bound(o_h_bil_t.r,8+FRAC);
@@ -2506,7 +2511,11 @@ BEGIN
         o_vpixq1<=o_vpixq;
         
         -- NEAREST -----------------------------------------
-        o_v_near_t<=near_calc(o_v_frac,o_vpixq1);
+        -- C4
+        o_v_near_frac<=near_frac(o_vfrac);
+        
+        -- C5
+        o_v_near_t<=near_calc(o_v_near_frac,o_vpixq1);
         
         -- C6 : Nearest
         o_v_near_pix.r<=o_v_near_t.r(7+FRAC DOWNTO FRAC);
@@ -2518,18 +2527,18 @@ BEGIN
         o_v_sbil_t<=sbil_frac1(o_vfrac);
         
         -- C4 : Select
-        o_v_frac<=(OTHERS =>'0');
+        o_v_bil_frac<=(OTHERS =>'0');
         IF o_vmode(0)='1' THEN -- Bilinear
           IF MASK(MASK_BILINEAR)='1' THEN
-            o_v_frac<=bil_frac(o_vfrac);
+            o_v_bil_frac<=bil_frac(o_vfrac);
           END IF;
         ELSE  -- Sharp Bilinear
           IF MASK(MASK_SHARP_BILINEAR)='1' THEN
-            o_v_frac<=sbil_frac2(o_vfrac,o_v_sbil_t);
+            o_v_bil_frac<=sbil_frac2(o_vfrac,o_v_sbil_t);
           END IF;
         END IF;
         
-        o_v_bil_t<=bil_calc(o_v_frac,o_vpixq1);
+        o_v_bil_t<=bil_calc(o_v_bil_frac,o_vpixq1);
         
         -- C6 : Bilinear / Sharp Bilinear
         o_v_bil_pix.r<=bound(o_v_bil_t.r,8+FRAC);
