@@ -151,6 +151,7 @@ ENTITY ascal IS
     o_vs  : OUT std_logic; -- V sync
     o_de  : OUT std_logic; -- Display Enable
     o_vbl : OUT std_logic; -- V blank
+    o_brd : OUT std_logic; -- border enable
     o_ce  : IN  std_logic; -- Clock Enable
     o_clk : IN  std_logic; -- Output clock
     
@@ -2579,6 +2580,7 @@ BEGIN
         o_r<=x"00";
         o_g<=x"00";
         o_b<=x"00";
+        o_brd<= not o_pev(5);
             
         CASE o_vmode(2 DOWNTO 0) IS
           WHEN "000" => -- Nearest
