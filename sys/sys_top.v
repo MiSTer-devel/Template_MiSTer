@@ -1236,7 +1236,7 @@ assign HDMI_TX_D  = hdmi_out_d;
 /////////////////////////  VGA output  //////////////////////////////////
 
 wire [23:0] vga_data_sl;
-wire        vga_de_sl, vga_vs_sl, vga_hs_sl;
+wire        vga_de_sl, vga_ce_sl, vga_vs_sl, vga_hs_sl;
 scanlines #(0) VGA_scanlines
 (
 	.clk(clk_vid),
@@ -1246,11 +1246,13 @@ scanlines #(0) VGA_scanlines
 	.hs_in(hs_fix),
 	.vs_in(vs_fix),
 	.de_in(de_emu),
+	.ce_in(ce_pix),
 
 	.dout(vga_data_sl),
 	.hs_out(vga_hs_sl),
 	.vs_out(vga_vs_sl),
-	.de_out(vga_de_sl)
+	.de_out(vga_de_sl),
+	.ce_out(vga_ce_sl)
 );
 
 wire [23:0] vga_data_osd;
@@ -1485,7 +1487,7 @@ sync_fix sync_h(clk_vid, hs_emu, hs_fix);
 wire  [6:0] user_out, user_in;
 
 assign clk_ihdmi= clk_vid;
-assign ce_hpix  = ce_pix;
+assign ce_hpix  = vga_ce_sl;
 assign hr_out   = vga_data_sl[23:16];
 assign hg_out   = vga_data_sl[15:8];
 assign hb_out   = vga_data_sl[7:0];
