@@ -74,6 +74,10 @@ module hps_io #(parameter CONF_STR, CONF_STR_BRAM=1, PS2DIV=0, WIDE=0, VDNUM=1, 
 	output      [1:0] buttons,
 	output            forced_scandoubler,
 	output            direct_video,
+	input             video_rotated,
+
+	//toggle to force notify of video mode change
+	input             new_vmode,
 
 	output reg [63:0] status,
 	input      [63:0] status_in,
@@ -82,9 +86,6 @@ module hps_io #(parameter CONF_STR, CONF_STR_BRAM=1, PS2DIV=0, WIDE=0, VDNUM=1, 
 
 	input             info_req,
 	input       [7:0] info,
-
-	//toggle to force notify of video mode change
-	input             new_vmode,
 
 	// SD config
 	output reg [VD:0] img_mounted,  // signaling that new image has been mounted
@@ -216,6 +217,7 @@ video_calc video_calc
 	.vs_hdmi(HPS_BUS[44]),
 	.f1(HPS_BUS[45]),
 	.new_vmode(new_vmode),
+	.video_rotated(video_rotated),
 
 	.par_num(byte_cnt[3:0]),
 	.dout(vc_dout)
@@ -847,6 +849,7 @@ module video_calc
 	input vs_hdmi,
 	input f1,
 	input new_vmode,
+	input video_rotated,
 
 	input       [3:0] par_num,
 	output reg [15:0] dout
@@ -854,7 +857,7 @@ module video_calc
 
 always @(posedge clk_sys) begin
 	case(par_num)
-		1: dout <= {|vid_int, vid_nres};
+		1: dout <= {video_rotated, |vid_int, vid_nres};
 		2: dout <= vid_hcnt[15:0];
 		3: dout <= vid_hcnt[31:16];
 		4: dout <= vid_vcnt[15:0];
