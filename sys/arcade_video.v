@@ -176,6 +176,8 @@ module screen_rotate
 	input         no_rotate,
 	input         flip,
 
+	output reg    VIDEO_ROTATED,
+
 	output            FB_EN,
 	output      [4:0] FB_FORMAT,
 	output reg [11:0] FB_WIDTH,
@@ -222,6 +224,7 @@ function [1:0] buf_next;
 endfunction
 
 always @(posedge CLK_VIDEO) begin
+	VIDEO_ROTATED <= ~no_rotate;
 	do_flip <= no_rotate && flip;
 	if( do_flip ) begin
 		FB_WIDTH  <= hsz;

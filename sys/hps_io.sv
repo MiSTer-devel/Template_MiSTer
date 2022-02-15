@@ -30,7 +30,7 @@
 module hps_io #(parameter CONF_STR, CONF_STR_BRAM=1, PS2DIV=0, WIDE=0, VDNUM=1, BLKSZ=2, PS2WE=0)
 (
 	input             clk_sys,
-	inout      [48:0] HPS_BUS,
+	inout      [49:0] HPS_BUS,
 
 	// buttons up to 32
 	output reg [31:0] joystick_0,
@@ -216,6 +216,7 @@ video_calc video_calc
 	.vs_hdmi(HPS_BUS[44]),
 	.f1(HPS_BUS[45]),
 	.new_vmode(new_vmode),
+	.rotated(HPS_BUS[49]),
 
 	.par_num(byte_cnt[3:0]),
 	.dout(vc_dout)
@@ -847,6 +848,7 @@ module video_calc
 	input vs_hdmi,
 	input f1,
 	input new_vmode,
+	input rotated,
 
 	input       [3:0] par_num,
 	output reg [15:0] dout
@@ -854,7 +856,7 @@ module video_calc
 
 always @(posedge clk_sys) begin
 	case(par_num)
-		1: dout <= {|vid_int, vid_nres};
+		1: dout <= {vid_rotated, |vid_int, vid_nres};
 		2: dout <= vid_hcnt[15:0];
 		3: dout <= vid_hcnt[31:16];
 		4: dout <= vid_vcnt[15:0];
@@ -875,6 +877,7 @@ reg [31:0] vid_hcnt = 0;
 reg [31:0] vid_vcnt = 0;
 reg  [7:0] vid_nres = 0;
 reg  [1:0] vid_int  = 0;
+reg        vid_rotated = 0;
 
 always @(posedge clk_vid) begin
 	integer hcnt;
@@ -893,6 +896,7 @@ always @(posedge clk_vid) begin
 
 		if(old_vs & ~vs) begin
 			vid_int <= {vid_int[0],f1};
+			vid_rotated <= rotated;
 			if(~f1) begin
 				if(hcnt && vcnt) begin
 					old_vmode <= new_vmode;

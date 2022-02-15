@@ -26,7 +26,7 @@ module emu
 	input         RESET,
 
 	//Must be passed to hps_io module
-	inout  [48:0] HPS_BUS,
+	inout  [49:0] HPS_BUS,
 
 	//Base video clock. Usually equals to CLK_SYS.
 	output        CLK_VIDEO,
@@ -39,6 +39,7 @@ module emu
 	//if VIDEO_ARX[12] or VIDEO_ARY[12] is set then [11:0] contains scaled size instead of aspect ratio.
 	output [12:0] VIDEO_ARX,
 	output [12:0] VIDEO_ARY,
+	output        VIDEO_ROTATED,
 
 	output  [7:0] VGA_R,
 	output  [7:0] VGA_G,
@@ -183,6 +184,8 @@ assign VGA_SL = 0;
 assign VGA_F1 = 0;
 assign VGA_SCALER = 0;
 assign HDMI_FREEZE = 0;
+
+assign VIDEO_ROTATED = 0;
 
 assign AUDIO_S = 0;
 assign AUDIO_L = 0;

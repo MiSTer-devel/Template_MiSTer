@@ -1459,6 +1459,7 @@ wire [15:0] audio_l, audio_r;
 wire        audio_s;
 wire  [1:0] audio_mix;
 wire  [1:0] scanlines;
+wire        video_rotated;
 wire  [7:0] r_out, g_out, b_out, hr_out, hg_out, hb_out;
 wire        vs_fix, hs_fix, de_emu, vs_emu, hs_emu, f1;
 wire        hvs_fix, hhs_fix, hde_emu;
@@ -1538,7 +1539,7 @@ emu emu
 (
 	.CLK_50M(FPGA_CLK2_50),
 	.RESET(reset),
-	.HPS_BUS({fb_en, sl, f1, HDMI_TX_VS, 
+	.HPS_BUS({video_rotated, fb_en, sl, f1, HDMI_TX_VS, 
 				 clk_100m, clk_ihdmi,
 				 ce_hpix, hde_emu, hhs_fix, hvs_fix, 
 				 io_wait, clk_sys, io_fpga, io_uio, io_strobe, io_wide, io_din, io_dout}),
@@ -1561,6 +1562,7 @@ emu emu
 	.VGA_SL(scanlines),
 	.VIDEO_ARX(ARX),
 	.VIDEO_ARY(ARY),
+	.VIDEO_ROTATED(video_rotated),
 
 `ifdef MISTER_FB
 	.FB_EN(fb_en),
