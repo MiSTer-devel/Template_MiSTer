@@ -231,7 +231,7 @@ ENTITY ascal IS
     --   [0]...[2**FRAC-1]
     --   [-1][0][1][2]
     poly_clk : IN std_logic;
-    poly_dw  : IN unsigned(8 DOWNTO 0);
+    poly_dw  : IN unsigned(9 DOWNTO 0);
     poly_a   : IN unsigned(FRAC+3 DOWNTO 0);
     poly_wr  : IN std_logic;
     
@@ -305,7 +305,7 @@ ARCHITECTURE rtl OF ascal IS
   
   TYPE arr_uv48 IS ARRAY (natural RANGE <>) OF unsigned(47 DOWNTO 0);
   TYPE arr_uv24 IS ARRAY (natural RANGE <>) OF unsigned(23 DOWNTO 0);
-  TYPE arr_uv36 IS ARRAY (natural RANGE <>) OF unsigned(35 DOWNTO 0);
+  TYPE arr_uv40 IS ARRAY (natural RANGE <>) OF unsigned(39 DOWNTO 0);
   TYPE arr_int9 IS ARRAY (natural RANGE <>) OF integer RANGE -256 TO 255;
   TYPE arr_uint12 IS ARRAY (natural RANGE <>) OF uint12;
   TYPE arr_frac IS ARRAY (natural RANGE <>) OF unsigned(11 DOWNTO 0);
@@ -949,39 +949,9 @@ ARCHITECTURE rtl OF ascal IS
   
   -----------------------------------------------------------------------------
   -- Polyphase
-  
-  CONSTANT POLY16 : arr_int9 := (
-  -24,-21,-15,-9,-5,-1,4,8,6,8,5,4,3,1,0,0,
-  176,174,169,160,150,131,115,85,58,27,4,-6,-20,-24,-26,-25,
-  -24,-25,-26,-24,-20,-6,4,27,58,85,115,131,150,160,169,174,
-   0,0,0,1,3,4,5,8,6,8,4,-1,-5,-9,-15,-21);
-  
-  CONSTANT POLY32 : arr_int9 := (
-    -24,-22,-20,-18,-16,-13,-11,-8,-6,-3,-1,0,2,3,5,5,6,6,6,5,5,4,4,3,2,1,1,0,0,0,0,0,
-    176,175,174,172,169,164,160,153,147,138,129,119,109,96,84,71,58,40,22,12,3,-4,-12,-16,-20,-22,-25,-25,-26,-25,-25,-25,
-    -24,-25,-26,-26,-26,-24,-23,-19,-16,-10,-4,4,11,22,32,45,58,77,96,108,119,129,140,147,154,159,165,168,172,173,175,175,
-    0,0,0,0,1,1,2,2,3,3,4,5,6,7,7,7,6,5,4,3,1,-1,-4,-6,-8,-10,-13,-15,-18,-20,-22,-22);
-  
-  FUNCTION init_poly RETURN arr_uv36 IS
-    VARIABLE m : arr_uv36(0 TO 2**FRAC-1) :=(OTHERS =>x"000000000");
-  BEGIN
-    IF FRAC=4 THEN
-      FOR i IN 0 TO 15 LOOP
-        m(i):=unsigned(to_signed(POLY16(i),9)    & to_signed(POLY16(i+16),9) &
-                       to_signed(POLY16(i+32),9) & to_signed(POLY16(i+48),9));
-      END LOOP;
-    ELSIF FRAC=5 THEN
-      FOR i IN 0 TO 31 LOOP
-        m(i):=unsigned(to_signed(POLY32(i),9)    & to_signed(POLY32(i+32),9) &
-                       to_signed(POLY32(i+64),9) & to_signed(POLY32(i+96),9));
-      END LOOP;
-    END IF;
-    RETURN m;
-  END FUNCTION;
-
   -- 2.7
   TYPE poly_phase_t IS RECORD
-    t0, t1, t2, t3  : signed(8 DOWNTO 0);
+    t0, t1, t2, t3  : signed(9 DOWNTO 0);
   END RECORD;
 
   -- 4.14
@@ -993,10 +963,11 @@ ARCHITECTURE rtl OF ascal IS
   TYPE type_poly_t IS RECORD
     r0,r1,b0,b1,g0,g1 : signed(26 DOWNTO 0);
   END RECORD;
+  
 
-  SIGNAL o_h_poly_mem : arr_uv36(0 TO 2**FRAC-1):=init_poly;
-  SIGNAL o_v_poly_mem : arr_uv36(0 TO 2**FRAC-1):=init_poly;
-  SIGNAL o_a_poly_mem : arr_uv36(0 TO 2**FRAC-1):=init_poly;
+  SIGNAL o_h_poly_mem : arr_uv40(0 TO 2**FRAC-1);
+  SIGNAL o_v_poly_mem : arr_uv40(0 TO 2**FRAC-1);
+  SIGNAL o_a_poly_mem : arr_uv40(0 TO 2**FRAC-1);
   ATTRIBUTE ramstyle OF o_h_poly_mem : SIGNAL IS "no_rw_check";
   ATTRIBUTE ramstyle OF o_v_poly_mem : SIGNAL IS "no_rw_check";
   ATTRIBUTE ramstyle OF o_a_poly_mem : SIGNAL IS "no_rw_check";
@@ -1014,17 +985,17 @@ ARCHITECTURE rtl OF ascal IS
 
   SIGNAL o_v_poly_adaptive, o_h_poly_adaptive, o_v_poly_use_adaptive, o_h_poly_use_adaptive : std_logic;
   SIGNAL poly_wr_mode : std_logic_vector(2 DOWNTO 0);
-  SIGNAL poly_tdw : unsigned(35 DOWNTO 0);
+  SIGNAL poly_tdw : unsigned(39 DOWNTO 0);
   SIGNAL poly_a2 : unsigned(FRAC-1 DOWNTO 0);
 
   
-  FUNCTION poly_unpack(a : unsigned(35 DOWNTO 0)) RETURN poly_phase_t IS
+  FUNCTION poly_unpack(a : unsigned(39 DOWNTO 0)) RETURN poly_phase_t IS
     VARIABLE v : poly_phase_t;
   BEGIN
-     v.t0 := signed(a(35 DOWNTO 27));
-     v.t1 := signed(a(26 DOWNTO 18));
-     v.t2 := signed(a(17 DOWNTO  9));
-     v.t3 := signed(a( 8 DOWNTO  0));
+     v.t0 := signed(a(39 DOWNTO 30));
+     v.t1 := signed(a(29 DOWNTO 20));
+     v.t2 := signed(a(19 DOWNTO 10));
+     v.t3 := signed(a( 9 DOWNTO  0));
 
     RETURN v;
   END FUNCTION;
@@ -1065,19 +1036,19 @@ ARCHITECTURE rtl OF ascal IS
                      ta : SIGNED(9 DOWNTO 0);
                      tb : SIGNED(9 DOWNTO 0)) RETURN poly_phase_interp_t IS
     VARIABLE v : poly_phase_interp_t;
-    VARIABLE t0,t1,t2,t3 : signed(18 DOWNTO 0);
+    VARIABLE t0,t1,t2,t3 : signed(19 DOWNTO 0);
   BEGIN
-    -- 2.7 * 2.8 = 4.15
+    -- 2.8 * 2.8 = 4.16
     t0 := (a.t0 * ta) + (b.t0 * tb);
     t1 := (a.t1 * ta) + (b.t1 * tb);
     t2 := (a.t2 * ta) + (b.t2 * tb);
     t3 := (a.t3 * ta) + (b.t3 * tb);
    
-    -- 4.15 -> 3.15
-    v.t0 := t0(17 DOWNTO 0);
-    v.t1 := t1(17 DOWNTO 0);
-    v.t2 := t2(17 DOWNTO 0);
-    v.t3 := t3(17 DOWNTO 0);
+    -- 4.16 -> 3.15
+    v.t0 := t0(18 DOWNTO 1);
+    v.t1 := t1(18 DOWNTO 1);
+    v.t2 := t2(18 DOWNTO 1);
+    v.t3 := t3(18 DOWNTO 1);
    
     RETURN v;
   END FUNCTION;
@@ -1085,10 +1056,10 @@ ARCHITECTURE rtl OF ascal IS
   FUNCTION poly_cvt(a : poly_phase_t) RETURN poly_phase_interp_t IS
     VARIABLE v : poly_phase_interp_t;
   BEGIN
-    v.t0 := resize(signed( a.t0 & "00000000" ), v.t0'length);
-    v.t1 := resize(signed( a.t1 & "00000000" ), v.t1'length);
-    v.t2 := resize(signed( a.t2 & "00000000" ), v.t2'length);
-    v.t3 := resize(signed( a.t3 & "00000000" ), v.t3'length);
+    v.t0 := resize(signed( a.t0 & "0000000" ), v.t0'length);
+    v.t1 := resize(signed( a.t1 & "0000000" ), v.t1'length);
+    v.t2 := resize(signed( a.t2 & "0000000" ), v.t2'length);
+    v.t3 := resize(signed( a.t3 & "0000000" ), v.t3'length);
     RETURN v;
   END FUNCTION;
 
@@ -1097,9 +1068,9 @@ ARCHITECTURE rtl OF ascal IS
     VARIABLE v : poly_phase_t;
   BEGIN
     IF frac(frac'left)='0' THEN
-      v := (t1=>to_signed(128, 9), OTHERS=>to_signed(0, 9));
+      v := (t1=>to_signed(256, 10), OTHERS=>to_signed(0, 10));
     ELSE
-      v := (t2=>to_signed(128, 9), OTHERS=>to_signed(0, 9));
+      v := (t2=>to_signed(256, 10), OTHERS=>to_signed(0, 10));
     END IF;
     RETURN v;
   END FUNCTION;
@@ -2431,8 +2402,8 @@ BEGIN
   BEGIN
     IF rising_edge(poly_clk) THEN
       IF poly_wr='1' THEN
-        poly_tdw(8+9*(3-to_integer(poly_a(1 DOWNTO 0))) DOWNTO
-                   9*(3-to_integer(poly_a(1 DOWNTO 0))))<=poly_dw;
+        poly_tdw(9+10*(3-to_integer(poly_a(1 DOWNTO 0))) DOWNTO
+                   10*(3-to_integer(poly_a(1 DOWNTO 0))))<=poly_dw;
       END IF;
       
       poly_wr_mode(0)<=poly_wr AND NOT poly_a(FRAC+2);
