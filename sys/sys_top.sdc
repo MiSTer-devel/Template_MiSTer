@@ -48,8 +48,8 @@ set_false_path -from {*_osd|rot*}
 set_false_path -from {*_osd|dsp_width*}
 set_false_path -to   {*_osd|half}
 
-set_false_path -to   {WIDTH[*] HFP[*] HS[*] HSPOL HBP[*] HEIGHT[*] VFP[*] VS[*] VSPOL VBP[*]}
-set_false_path -from {WIDTH[*] HFP[*] HS[*] HSPOL HBP[*] HEIGHT[*] VFP[*] VS[*] VSPOL VBP[*]}
+set_false_path -to   {WIDTH[*] HFP[*] HS[*] HBP[*] HEIGHT[*] VFP[*] VS[*] VBP[*]}
+set_false_path -from {WIDTH[*] HFP[*] HS[*] HBP[*] HEIGHT[*] VFP[*] VS[*] VBP[*]}
 set_false_path -to   {FB_BASE[*] FB_BASE[*] FB_WIDTH[*] FB_HEIGHT[*] LFB_HMIN[*] LFB_HMAX[*] LFB_VMIN[*] LFB_VMAX[*]}
 set_false_path -from {FB_BASE[*] FB_BASE[*] FB_WIDTH[*] FB_HEIGHT[*] LFB_HMIN[*] LFB_HMAX[*] LFB_VMIN[*] LFB_VMAX[*]}
 set_false_path -to   {vol_att[*] scaler_flt[*] led_overtake[*] led_state[*]}
