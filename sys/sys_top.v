@@ -1216,13 +1216,21 @@ reg hdmi_out_de;
 reg [23:0] hdmi_out_d;
 
 always @(posedge hdmi_tx_clk) begin
+	reg [23:0] hdmi_dv_data;
+	reg        hdmi_dv_hs, hdmi_dv_vs, hdmi_dv_de;
+
 	reg hs,vs,de;
 	reg [23:0] d;
 	
-	hs <= (~vga_fb & direct_video) ? dv_hs   : (direct_video & csync_en) ? hdmi_cs_osd : hdmi_hs_osd;
-	vs <= (~vga_fb & direct_video) ? dv_vs   : hdmi_vs_osd;
-	de <= (~vga_fb & direct_video) ? dv_de   : hdmi_de_osd;
-	d  <= (~vga_fb & direct_video) ? dv_data : hdmi_data_osd;
+	hdmi_dv_data <= dv_data;
+	hdmi_dv_hs   <= dv_hs;
+	hdmi_dv_vs   <= dv_vs;
+	hdmi_dv_de   <= dv_de;
+	
+	hs <= (~vga_fb & direct_video) ? hdmi_dv_hs   : (direct_video & csync_en) ? hdmi_cs_osd : hdmi_hs_osd;
+	vs <= (~vga_fb & direct_video) ? hdmi_dv_vs   : hdmi_vs_osd;
+	de <= (~vga_fb & direct_video) ? hdmi_dv_de   : hdmi_de_osd;
+	d  <= (~vga_fb & direct_video) ? hdmi_dv_data : hdmi_data_osd;
 
 	hdmi_out_hs <= hs;
 	hdmi_out_vs <= vs;
