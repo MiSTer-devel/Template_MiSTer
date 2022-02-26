@@ -377,14 +377,14 @@ always@(posedge clk_sys) begin
 				cfg_set <= 0;
 				if(cnt<8) begin
 					case(cnt[2:0])
-						0: if(WIDTH  != io_din[11:0]) WIDTH  <= io_din[11:0];
-						1: if(HFP    != io_din[11:0]) HFP    <= io_din[11:0];
-						2: if(HS     != io_din[11:0]) HS     <= io_din[11:0];
-						3: if(HBP    != io_din[11:0]) HBP    <= io_din[11:0];
-						4: if(HEIGHT != io_din[11:0]) HEIGHT <= io_din[11:0];
-						5: if(VFP    != io_din[11:0]) VFP    <= io_din[11:0];
-						6: if(VS     != io_din[11:0]) VS     <= io_din[11:0];
-						7: if(VBP    != io_din[11:0]) VBP    <= io_din[11:0];
+						0: WIDTH      <= io_din[11:0];
+						1: HFP        <= io_din[11:0];
+						2: {HSPOL,HS} <= {io_din[15], io_din[11:0]};
+						3: HBP        <= io_din[11:0];
+						4: HEIGHT     <= io_din[11:0];
+						5: VFP        <= io_din[11:0];
+						6: {VSPOL,VS} <= {io_din[15],io_din[11:0]};
+						7: VBP        <= io_din[11:0];
 					endcase
 `ifndef MISTER_DEBUG_NOHDMI
 					if(cnt == 1) begin
@@ -963,6 +963,8 @@ reg  [11:0] HEIGHT = 1080;
 reg  [11:0] VFP    = 4;
 reg  [11:0] VS     = 5;
 reg  [11:0] VBP    = 36;
+reg         HSPOL  = 0;
+reg         VSPOL  = 0;
 
 wire [63:0] reconfig_to_pll;
 wire [63:0] reconfig_from_pll;
@@ -1315,11 +1317,11 @@ csync csync_vga(clk_vid, vga_hs_osd, vga_vs_osd, vga_cs_osd);
 
 	wire cs1 = (vga_fb | vga_scaler) ? vgas_cs : vga_cs;
 
-	assign VGA_VS = (VGA_EN | SW[3]) ? 1'bZ      : ((vga_fb | vga_scaler) ? ~vgas_vs : ~vga_vs) | csync_en;
-	assign VGA_HS = (VGA_EN | SW[3]) ? 1'bZ      :  (vga_fb | vga_scaler) ? (csync_en ? ~vgas_cs : ~vgas_hs) : (csync_en ? ~vga_cs : ~vga_hs);
-	assign VGA_R  = (VGA_EN | SW[3]) ? 6'bZZZZZZ :  (vga_fb | vga_scaler) ? vgas_o[23:18] : vga_o[23:18];
-	assign VGA_G  = (VGA_EN | SW[3]) ? 6'bZZZZZZ :  (vga_fb | vga_scaler) ? vgas_o[15:10] : vga_o[15:10];
-	assign VGA_B  = (VGA_EN | SW[3]) ? 6'bZZZZZZ :  (vga_fb | vga_scaler) ? vgas_o[7:2]   : vga_o[7:2]  ;
+	assign VGA_VS = (VGA_EN | SW[3]) ? 1'bZ      :((((vga_fb | vga_scaler) ? ~vgas_vs : ~vga_vs) | csync_en) ^ VSPOL);
+	assign VGA_HS = (VGA_EN | SW[3]) ? 1'bZ      : (((vga_fb | vga_scaler) ? (csync_en ? ~vgas_cs : ~vgas_hs) : (csync_en ? ~vga_cs : ~vga_hs)) ^ HSPOL);
+	assign VGA_R  = (VGA_EN | SW[3]) ? 6'bZZZZZZ :   (vga_fb | vga_scaler) ? vgas_o[23:18] : vga_o[23:18];
+	assign VGA_G  = (VGA_EN | SW[3]) ? 6'bZZZZZZ :   (vga_fb | vga_scaler) ? vgas_o[15:10] : vga_o[15:10];
+	assign VGA_B  = (VGA_EN | SW[3]) ? 6'bZZZZZZ :   (vga_fb | vga_scaler) ? vgas_o[7:2]   : vga_o[7:2]  ;
 `endif
 
 reg video_sync = 0;
