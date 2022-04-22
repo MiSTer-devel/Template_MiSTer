@@ -166,9 +166,9 @@ wire [15:0] init_data[85] =
 
 	{8'h3C, 8'b0000_0000},  // VIC b0000_0000 = Manual Disable (Skooter)
 	
-	{8'h59, 8'b0011_0000},  // [7:6] YQ1 YQ0 YCC Quantization Range b00 = Limited Range (Skooter)
-									// [5:4] IT Content Type b11 = Game (Skooter)
-									// [3:0] Pixel Repetition Fields b0000 = No Repetition (Skooter)
+	{8'h59, (ypbpr | limited) ? 2'b00 : 2'b01, // [7:6] [YQ1 YQ0] YCC Quantization Range: b00 = Limited Range, b01 = Full Range (Skooter)
+	2'b11,							// [5:4] IT Content Type b11 = Game (Skooter)
+	4'b0000}, 						// [3:0] Pixel Repetition Fields b0000 = No Repetition (Skooter)
 
 	16'h7301,
 
