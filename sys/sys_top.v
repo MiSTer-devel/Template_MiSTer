@@ -632,6 +632,11 @@ wire clk_hdmi  = hdmi_clk_out;
 ascal 
 #(
 	.RAMBASE(32'h20000000),
+`ifdef MISTER_SMALL_VBUF
+	.RAMSIZE(32'h00100000),
+`else
+	.RAMSIZE(32'h00800000),
+`endif
 `ifndef MISTER_FB
 	.PALETTE2("false"),
 `else
