@@ -481,9 +481,6 @@ always@(posedge clk_sys) begin
 	fb_crc <= {LFB_EN, FB_EN, FB_FMT}
 				^ FB_WIDTH[7:0]  ^ FB_WIDTH[11:8] 
 				^ FB_HEIGHT[7:0] ^ FB_HEIGHT[11:8] 
-				^ FB_BASE[7:0]   ^ FB_BASE[15:8] 
-				^ FB_BASE[23:16] ^ FB_BASE[31:24] 
-				^ FB_STRIDE[7:0] ^ FB_STRIDE[13:8] 
 				^ arx[7:0] ^ arx[11:8] ^ arxy
 				^ ary[7:0] ^ ary[11:8];
 `endif
