@@ -220,7 +220,9 @@ ENTITY ascal IS
     vdisp   : IN natural RANGE 0 TO 4095;
     vmin    : IN natural RANGE 0 TO 4095;
     vmax    : IN natural RANGE 0 TO 4095; -- 0 <= vmin < vmax < vdisp
-    
+	 vrr     : IN std_logic := '0';
+    vrrmax  : IN natural RANGE 0 TO 4095 := 0;
+
     -- Scaler format. 00=16bpp 565, 01=24bpp 10=32bpp
     format  : IN unsigned(1 DOWNTO 0) :="01";
     
@@ -423,6 +425,9 @@ ARCHITECTURE rtl OF ascal IS
   SIGNAL o_hmin,o_hmax,o_hdisp,o_v_hmin_adj : uint12;
   SIGNAL o_hsize,o_vsize : uint12;
   SIGNAL o_vtotal,o_vsstart,o_vsend : uint12;
+  SIGNAL o_vrr : std_logic;
+  SIGNAL o_vcpt_sync, o_vrrmax : uint12;
+  SIGNAL o_sync, o_sync_max : std_logic;
   SIGNAL o_vmin,o_vmax,o_vdisp : uint12;
   SIGNAL o_divcpt : natural RANGE 0 TO 36;
   SIGNAL o_iendframe0,o_iendframe02,o_iendframe1,o_iendframe12 : std_logic;
@@ -1847,6 +1852,9 @@ BEGIN
       
       o_hsize  <=o_hmax - o_hmin + 1;
       o_vsize  <=o_vmax - o_vmin + 1;
+		
+		o_vrr    <= vrr;
+		o_vrrmax <= vrrmax;
       
       --------------------------------------------
       -- Triple buffering.
@@ -2633,14 +2641,24 @@ BEGIN
   OSWEEP:PROCESS(o_clk) IS
   BEGIN
     IF rising_edge(o_clk) THEN
+
       IF o_ce='1' THEN
         -- Output pixels count
         IF o_hcpt+1<o_htotal THEN
           o_hcpt<=(o_hcpt+1) MOD 4096;
         ELSE
           o_hcpt<=0;
+
+          IF o_vcpt_sync < 4095 THEN
+				o_vcpt_sync <= o_vcpt_sync+1;
+			 END IF;
+
           IF o_vcpt_pre3+1>=o_vtotal THEN
             o_vcpt_pre3<=0;
+				o_sync<='0';
+          ELSIF o_sync='1' OR (o_sync_max='1' AND o_vcpt_pre3=o_vdisp) THEN
+				o_vcpt_pre3<=o_vsstart;
+				o_sync<='0';
           ELSE
             o_vcpt_pre3<=(o_vcpt_pre3+1) MOD 4096;
           END IF;
@@ -2674,8 +2692,20 @@ BEGIN
         END IF;
         
       END IF;
-    END IF;
-    
+
+		IF o_iendframe0='1' AND o_iendframe02='0' THEN
+			o_vcpt_sync <= 0;
+			o_sync_max <= '0';
+			IF o_vrr='1' THEN
+				IF o_vcpt_sync<=o_vrrmax THEN
+					o_sync_max <= '1';
+				ELSIF o_vcpt_sync<o_vtotal AND o_vcpt_pre3>=o_vdisp AND o_vcpt_pre3<o_vsstart THEN
+					o_sync<='1';
+				END IF;
+			END IF;
+      END IF;
+	 END IF;
+
   END PROCESS OSWEEP;
   
   -----------------------------------------------------------------------------
