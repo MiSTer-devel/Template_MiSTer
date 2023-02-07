@@ -55,6 +55,14 @@ module emu
 	input  [11:0] HDMI_HEIGHT,
 	output        HDMI_FREEZE,
 
+`ifndef MISTER_DISABLE_YC
+	// S-Video/CVBS signals
+	output [39:0] CHROMA_PHASE_INC,
+	output [26:0] COLORBURST_RANGE,
+	output        YC_EN,
+	output        PALFLAG,
+`endif
+
 `ifdef MISTER_FB
 	// Use framebuffer in DDRAM
 	// FB_FORMAT:
@@ -209,6 +217,7 @@ localparam CONF_STR = {
 	"O[122:121],Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
 	"O[2],TV Mode,NTSC,PAL;",
 	"O[4:3],Noise,White,Red,Green,Blue;",
+	"O[22],Video Signal,RGBS/YPbPr,Y/C;",
 	"-;",
 	"P1,Test Page 1;",
 	"P1-;",
@@ -225,7 +234,7 @@ localparam CONF_STR = {
 	"P2S0,DSK;",
 	"P2O[7:6],Option 2,1,2,3,4;",
 	"-;",
-	"-;",
+	"- ;",
 	"T[0],Reset;",
 	"R[0],Reset and close OSD;",
 	"V,v",`BUILD_DATE 
@@ -265,6 +274,30 @@ pll pll
 wire reset = RESET | status[0] | buttons[1];
 
 //////////////////////////////////////////////////////////////////
+
+// SET PAL and NTSC TIMING and pass through status bits.
+`ifndef MISTER_DISABLE_YC
+	localparam NTSC_REF = 3.579545;   
+	localparam PAL_REF  = 4.43361875;
+
+	// Colorburst Length Calculation to send to Y/C Module, based on the CLK_VIDEO of the core
+	localparam [6:0] COLORBURST_START    = ( 3.7 * (CLK_VIDEO_NTSC/NTSC_REF));
+	localparam [9:0] COLORBURST_NTSC_END = ( 9.0 * (CLK_VIDEO_NTSC/NTSC_REF)) + COLORBURST_START;
+	localparam [9:0] COLORBURST_PAL_END  = (10.0 * (CLK_VIDEO_PAL/PAL_REF))   + COLORBURST_START;
+
+	// Parameters to be modifed
+   localparam CLK_VIDEO_NTSC = 20.0; // Must be filled E.g XX.X Hz - CLK_VIDEO
+	localparam CLK_VIDEO_PAL  = 20.0; // Must be filled E.g XX.X Hz - CLK_VIDEO
+	localparam [39:0] NTSC_PHASE_INC = 40'd196787567482; // ((NTSC_REF*2^40) / CLK_VIDEO_NTSC)
+	localparam [39:0] PAL_PHASE_INC  = 40'd243740768437; // ((PAL_REF*2^40) / CLK_VIDEO_PAL)
+
+	// Send Parameters to Y/C Module
+	assign CHROMA_PHASE_INC = PALFLAG ? PAL_PHASE_INC : NTSC_PHASE_INC; 
+ 	assign COLORBURST_RANGE = {COLORBURST_START, COLORBURST_NTSC_END, COLORBURST_PAL_END}; // Pass colorburst length
+
+	assign YC_EN   = status[22];  // Change the status to match your configuration
+	assign PALFLAG = status[2];   // if applicable, Change the status to match your configuration. 
+`endif
 
 wire [1:0] col = status[4:3];
 

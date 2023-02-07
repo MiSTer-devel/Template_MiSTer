@@ -67,6 +67,9 @@ set_global_assignment -name SEED 1
 #use only 1MB per frame for scaler to free ~21MB DDR3 RAM
 #set_global_assignment -name VERILOG_MACRO "MISTER_SMALL_VBUF=1"
 
+# Disable YC / Composite output to save some resources
+#set_global_assignment -name VERILOG_MACRO "MISTER_DISABLE_YC=1"
+
 source sys/sys.tcl
 source sys/sys_analog.tcl
 source files.qip
