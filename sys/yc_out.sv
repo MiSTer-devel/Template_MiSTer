@@ -30,7 +30,8 @@ module yc_out
 	input         clk,
 	input  [39:0] PHASE_INC,
 	input         PAL_EN,
-	input  [26:0] COLORBURST_RANGE,
+	input         CVBS,
+	input  [16:0] COLORBURST_RANGE,
 
 	input	        hsync,
 	input	        vsync,
@@ -169,7 +170,7 @@ always_ff @(posedge clk) begin
 		end
 	end
 	else begin // Generate Colorburst for 9 cycles
-		if (cburst_phase >= COLORBURST_RANGE[26:20] && cburst_phase <= (PAL_EN ? COLORBURST_RANGE[9:0] : COLORBURST_RANGE[19:10])) begin // Start the color burst signal at 40 samples or 0.9 us
+		if (cburst_phase >= COLORBURST_RANGE[16:10] && cburst_phase <= COLORBURST_RANGE[9:0]) begin // Start the color burst signal at 40 samples or 0.9 us
 			// COLORBURST SIGNAL GENERATION (9 CYCLES ONLY or between count 40 - 240)
 			phase[2].u <= $signed({chroma_SIN_LUT[chroma_LUT_BURST],5'd0});
 			phase[2].v <= 21'b0;
@@ -195,7 +196,7 @@ always_ff @(posedge clk) begin
 		end
 
 		// Stop the colorburst timer as its only needed for the initial pulse
-		if (cburst_phase <= (PAL_EN ? COLORBURST_RANGE[9:0] : COLORBURST_RANGE[19:10]))
+		if (cburst_phase <= COLORBURST_RANGE[9:0])
 			cburst_phase <= cburst_phase + 9'd1;
 
 			// Calculate for chroma (Note: "PAL SWITCH" routine flips V * COS(Wt) every other line)
@@ -219,8 +220,8 @@ always_ff @(posedge clk) begin
 	phase[1].y <= phase[0].y; phase[2].y <= phase[1].y; phase[3].y <= phase[2].y; phase[4].y <= phase[3].y; phase[5].y <= phase[4].y;
 
 	// Set Chroma / Luma output
-	C <= phase[4].c[7:0];
-	Y <= phase[5].y[17:10];
+	C <= CVBS ? 8'd0 : phase[4].c[7:0];
+	Y <= CVBS ? ({1'b0, phase[5].y[17:11]} + {1'b0, phase[4].c[7:1]}) : phase[5].y[17:10];
 end
 
 assign dout = {C, Y, 8'd0};

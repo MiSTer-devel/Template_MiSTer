@@ -476,6 +476,18 @@ always@(posedge clk_sys) begin
 				endcase
 			end
 `endif
+`ifndef MISTER_DISABLE_YC
+			if(cmd == 'h41) begin
+				case(cnt[3:0])
+					 0: {pal_en,cvbs,yc_en}    <= io_din[2:0];
+					 1: PhaseInc[15:0]         <= io_din;
+					 2: PhaseInc[31:16]        <= io_din;
+					 3: PhaseInc[39:32]        <= io_din[7:0];
+					 4: ColorBurst_Range[15:0] <= io_din;
+					 5: ColorBurst_Range[16]   <= io_din[0];
+				endcase
+			end
+`endif
 		end
 	end
 
@@ -1356,6 +1368,31 @@ csync csync_vga(clk_vid, vga_hs_osd, vga_vs_osd, vga_cs_osd);
 	);
 
 `ifndef MISTER_DISABLE_YC
+	reg         pal_en;
+	reg         yc_en;
+	reg         cvbs;
+	reg  [16:0] ColorBurst_Range;
+	reg  [39:0] PhaseInc;
+	wire [23:0] yc_o;
+	wire        yc_hs, yc_vs, yc_cs;
+
+	yc_out yc_out
+	(
+		.clk(clk_vid),
+		.PAL_EN(pal_en),
+		.CVBS(cvbs),
+		.PHASE_INC(PhaseInc),
+		.COLORBURST_RANGE(ColorBurst_Range),
+		.hsync(vga_hs_osd),
+		.vsync(vga_vs_osd),
+		.csync(vga_cs_osd),
+		.dout(yc_o),
+		.din(vga_data_osd),
+		.hsync_o(yc_hs),
+		.vsync_o(yc_vs),
+		.csync_o(yc_cs)
+	);
+	
 	assign {vga_o, vga_hs, vga_vs, vga_cs } = ~yc_en ? {vga_o_t, vga_hs_t, vga_vs_t, vga_cs_t } : {yc_o, yc_hs, yc_vs, yc_cs };
 `else
 	assign {vga_o, vga_hs, vga_vs, vga_cs } =  {vga_o_t, vga_hs_t, vga_vs_t, vga_cs_t } ;
@@ -1368,31 +1405,6 @@ csync csync_vga(clk_vid, vga_hs_osd, vga_vs_osd, vga_cs_osd);
 	assign VGA_R  = (VGA_EN | SW[3]) ? 6'bZZZZZZ :   (vga_fb | vga_scaler) ? vgas_o[23:18]                               : VGA_DISABLE ? 6'd0 : vga_o[23:18];
 	assign VGA_G  = (VGA_EN | SW[3]) ? 6'bZZZZZZ :   (vga_fb | vga_scaler) ? vgas_o[15:10]                               : VGA_DISABLE ? 6'd0 : vga_o[15:10];
 	assign VGA_B  = (VGA_EN | SW[3]) ? 6'bZZZZZZ :   (vga_fb | vga_scaler) ? vgas_o[7:2]                                 : VGA_DISABLE ? 6'd0 : vga_o[7:2]  ;
-`endif
-
-`ifndef MISTER_DISABLE_YC
-wire        pal_en;
-wire        yc_en;
-wire [26:0] COLORBURST_RANGE;
-wire [23:0] yc_o;
-wire        yc_hs, yc_vs, yc_cs;
-wire [39:0] PhaseInc;
-
-yc_out yc_out
-(
-	.clk(clk_vid),
-	.PAL_EN(pal_en),
-	.PHASE_INC(PhaseInc),
-	.COLORBURST_RANGE(COLORBURST_RANGE),
-	.hsync(vga_hs_osd),
-	.vsync(vga_vs_osd),
-	.csync(vga_cs_osd),
-	.dout(yc_o),
-	.din(vga_data_osd),
-	.hsync_o(yc_hs),
-	.vsync_o(yc_vs),
-	.csync_o(yc_cs)
-);
 `endif
 
 reg video_sync = 0;
@@ -1638,13 +1650,6 @@ emu emu
 	.VGA_SL(scanlines),
 	.VIDEO_ARX(ARX),
 	.VIDEO_ARY(ARY),
-
-`ifndef MISTER_DISABLE_YC	
-	.COLORBURST_RANGE(COLORBURST_RANGE),
-	.PALFLAG(pal_en),
-	.YC_EN(yc_en),
-	.CHROMA_PHASE_INC(PhaseInc),
-`endif
 
 `ifdef MISTER_FB
 	.FB_EN(fb_en),
