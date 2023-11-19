@@ -73,6 +73,9 @@ set_global_assignment -name SEED 1
 # Disable ALSA audio output to save some resources
 #set_global_assignment -name VERILOG_MACRO "MISTER_DISABLE_ALSA=1"
 
+# Increase maximum horizontal output resolution from 2048 to 4096--may exceed resource limits
+#set_global_assignment -name VERILOG_MACRO "MISTER_4K_HORIZONTAL_RES=1"
+
 source sys/sys.tcl
 source sys/sys_analog.tcl
 source files.qip

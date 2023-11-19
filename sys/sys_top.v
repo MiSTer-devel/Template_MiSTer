@@ -686,6 +686,9 @@ ascal
 `ifdef MISTER_DOWNSCALE_NN
 	.DOWNSCALE_NN("true"),
 `endif
+`ifdef MISTER_4K_HORIZONTAL_RES
+	.OHRES(4096),
+`endif
 	.FRAC(8),
 	.N_DW(128),
 	.N_AW(28)
