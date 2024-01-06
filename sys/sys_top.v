@@ -1020,13 +1020,11 @@ reg   [5:0] adj_address;
 reg  [31:0] adj_data;
 
 `ifndef MISTER_DEBUG_NOHDMI
-pll_cfg pll_cfg
+pll_cfg_hdmi pll_cfg_hdmi
 (
 	.mgmt_clk(FPGA_CLK1_50),
 	.mgmt_reset(reset_req),
 	.mgmt_waitrequest(cfg_waitrequest),
-	.mgmt_read(0),
-	.mgmt_readdata(),
 	.mgmt_write(cfg_write),
 	.mgmt_address(cfg_address),
 	.mgmt_writedata(cfg_data),
