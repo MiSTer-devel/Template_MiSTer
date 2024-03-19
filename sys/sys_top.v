@@ -188,9 +188,22 @@ wire io_dig = mcp_en ? mcp_mode : SW[3];
 	wire   BTN_DIS   = SDRAM2_DQ[15];
 `endif
 
-wire btn_r = mcp_en ? mcp_btn[1] : ~(BTN_RESET|BTN_DIS);
-wire btn_o = mcp_en ? mcp_btn[2] : ~(BTN_OSD  |BTN_DIS);
-wire btn_u = mcp_en ? mcp_btn[0] : ~(BTN_USER |BTN_DIS);
+reg BTN_EN = 0;
+reg [7:0] btn_timeout = 0;
+initial btn_timeout = 0;
+always @(posedge FPGA_CLK2_50) begin
+	reg btn_up = 0;
+	reg btn_en = 0;
+
+	btn_up <= BTN_RESET & BTN_OSD & BTN_USER;
+	if(~reset & btn_up & ~&btn_timeout) btn_timeout <= btn_timeout + 1'd1;
+	btn_en <= ~BTN_DIS;
+	BTN_EN <= &btn_timeout & btn_en;
+end
+
+wire btn_r = mcp_en ? mcp_btn[1] : (BTN_EN & ~BTN_RESET);
+wire btn_o = mcp_en ? mcp_btn[2] : (BTN_EN & ~BTN_OSD  );
+wire btn_u = mcp_en ? mcp_btn[0] : (BTN_EN & ~BTN_USER );
 
 reg btn_user, btn_osd;
 always @(posedge FPGA_CLK2_50) begin
