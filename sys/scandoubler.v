@@ -19,7 +19,7 @@
 
 // TODO: Delay vsync one line
 
-module scandoubler #(parameter LENGTH, parameter HALF_DEPTH)
+module scandoubler #(parameter LENGTH=768, parameter HALF_DEPTH=0)
 (
 	// system interface
 	input             clk_vid,
@@ -56,7 +56,7 @@ wire [7:0] pc_in = pix_in_cnt + 1'b1;
 reg  [7:0] pixsz, pixsz2, pixsz4 = 0;
 
 reg ce_x4i, ce_x1i;
-always @(posedge clk_vid) begin
+always @(posedge clk_vid) begin : old_ce_block
 	reg old_ce, valid, hs;
 
 	if(~&pix_len) pix_len <= pl;
@@ -120,7 +120,7 @@ reg  [7:0] pix_out_cnt = 0;
 wire [7:0] pc_out = pix_out_cnt + 1'b1;
 
 reg ce_x4o, ce_x2o;
-always @(posedge clk_vid) begin
+always @(posedge clk_vid) begin : pix_out_cnt_block
 	reg hs;
 
 	if(~&pix_out_cnt) pix_out_cnt <= pc_out;
@@ -144,7 +144,7 @@ reg [1:0] sd_line;
 reg [3:0] vbo;
 reg [3:0] vso;
 reg [8:0] hbo;
-always @(posedge clk_vid) begin
+always @(posedge clk_vid) begin : sync_block
 
 	reg [31:0] hcnt;
 	reg [30:0] sd_hcnt;

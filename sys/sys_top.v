@@ -206,7 +206,7 @@ wire btn_o = (mcp_en | SW[3]) ? mcp_btn[2] : (BTN_EN & ~BTN_OSD  );
 wire btn_u = (mcp_en | SW[3]) ? mcp_btn[0] : (BTN_EN & ~BTN_USER );
 
 reg btn_user, btn_osd;
-always @(posedge FPGA_CLK2_50) begin
+always @(posedge FPGA_CLK2_50) begin : user_button_block
 	integer div;
 	reg [7:0] deb_user;
 	reg [7:0] deb_osd;
@@ -346,7 +346,7 @@ reg [12:0] arc2x = 0;
 reg [12:0] arc2y = 0;
 reg [15:0] io_dout_sys;
 
-always@(posedge clk_sys) begin
+always@(posedge clk_sys) begin : cmd_block
 	reg  [7:0] cmd;
 	reg        has_cmd;
 	reg  [7:0] cnt = 0;
@@ -864,7 +864,7 @@ reg [11:0] arx;
 reg [11:0] ary;
 reg        arxy;
 
-always @(posedge clk_vid) begin
+always @(posedge clk_vid) begin : video_calc_block
 	reg [11:0] hmini,hmaxi,vmini,vmaxi;
 	reg [11:0] wcalc,videow;
 	reg [11:0] hcalc,videoh;
@@ -988,7 +988,7 @@ wire        pal_wr;
 
 reg  [28:0] pal_addr;
 reg         pal_req = 0;
-always @(posedge clk_pal) begin
+always @(posedge clk_pal) begin : vs_block
 	reg old_vs1, old_vs2;
 
 	pal_addr <= LFB_BASE[31:3] - 29'd512;
@@ -1173,7 +1173,7 @@ reg        dv_hs, dv_vs, dv_de;
 wire [23:0] dv_data_osd;
 wire dv_hs_osd, dv_vs_osd, dv_cs_osd;
 
-always @(posedge clk_vid) begin
+always @(posedge clk_vid) begin : dv_block
 	reg [23:0] dv_d1, dv_d2;
 	reg        dv_de1, dv_de2, dv_hs1, dv_hs2, dv_vs1, dv_vs2;
 	reg [12:0] vsz, vcnt, vcnt_l, vcnt_ll;
@@ -1265,7 +1265,7 @@ reg hdmi_out_vs;
 reg hdmi_out_de;
 reg [23:0] hdmi_out_d;
 
-always @(posedge hdmi_tx_clk) begin
+always @(posedge hdmi_tx_clk) begin : hdmi_out_block
 	reg [23:0] hdmi_dv_data;
 	reg        hdmi_dv_hs, hdmi_dv_vs, hdmi_dv_de;
 
@@ -1456,7 +1456,7 @@ csync csync_vga(clk_vid, vga_hs_osd, vga_vs_osd, vga_cs_osd);
 `endif
 
 reg video_sync = 0;
-always @(posedge clk_vid) begin
+always @(posedge clk_vid) begin : line_block
 	reg [11:0] line_cnt  = 0;
 	reg [11:0] sync_line = 0;
 	reg  [1:0] hs_cnt = 0;
@@ -1817,7 +1817,7 @@ module sync_fix
 assign sync_out = sync_in ^ pol;
 
 reg pol;
-always @(posedge clk) begin
+always @(posedge clk) begin : pol_block
 	reg [31:0] cnt;
 	reg s1,s2;
 
@@ -1850,7 +1850,7 @@ module csync
 assign csync = (csync_vs ^ csync_hs);
 
 reg csync_hs, csync_vs;
-always @(posedge clk) begin
+always @(posedge clk) begin : h_cnt_block
 	reg prev_hs;
 	reg [15:0] h_cnt, line_len, hs_len;
 

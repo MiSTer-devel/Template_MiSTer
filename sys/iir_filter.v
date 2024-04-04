@@ -175,7 +175,7 @@ begin
 end
 endfunction
 
-(* ramstyle = "logic" *) reg [39:0] intreg[2];
+(* ramstyle = "logic" *) reg [39:0] intreg[1:0];
 always @(posedge clk, posedge reset) begin
 	if(reset) {intreg[0],intreg[1]} <= 80'd0;
 	else if(ce) intreg[ch] <= x_mul(x) - y_mul[60:21] + z;

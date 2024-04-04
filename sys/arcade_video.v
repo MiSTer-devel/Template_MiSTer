@@ -61,7 +61,7 @@ sync_fix sync_h(CLK_VIDEO, VSync, vs_fix);
 reg [DW-1:0] RGB_fix;
 
 reg CE,HS,VS,HBL,VBL;
-always @(posedge CLK_VIDEO) begin
+always @(posedge CLK_VIDEO) begin : hbl_block
 	reg old_ce;
 	old_ce <= ce_pix;
 	CE <= 0;
@@ -236,7 +236,7 @@ always @(posedge CLK_VIDEO) begin
 end
 
 reg [1:0] i_fb,o_fb;
-always @(posedge CLK_VIDEO) begin
+always @(posedge CLK_VIDEO) begin : old_block
 	reg old_vbl,old_vs;
 	old_vbl <= FB_VBL;
 	old_vs <= VGA_VS;
@@ -259,7 +259,7 @@ reg  [2:0] fb_en = 0;
 reg [11:0] hsz = 320, vsz = 240;
 reg [11:0] bwidth;
 reg [22:0] bufsize;
-always @(posedge CLK_VIDEO) begin
+always @(posedge CLK_VIDEO) begin : old_vs_block
 	reg [11:0] hcnt = 0, vcnt = 0;
 	reg old_vs, old_de;
 
@@ -291,7 +291,7 @@ wire [13:0] stride = {bwidth[11:2], 4'd0};
 reg [22:0] ram_addr, next_addr;
 reg [31:0] ram_data;
 reg        ram_wr;
-always @(posedge CLK_VIDEO) begin
+always @(posedge CLK_VIDEO) begin : vga_de_block
 	reg [13:0] hcnt = 0;
 	reg old_vs, old_de;
 

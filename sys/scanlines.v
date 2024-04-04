@@ -13,7 +13,7 @@ module scanlines #(parameter v2=0)
 );
 
 reg [1:0] scanline;
-always @(posedge clk) begin
+always @(posedge clk) begin : scanline_block
 	reg old_hs, old_vs;
 
 	old_hs <= hs_in;
@@ -54,7 +54,7 @@ always @(*) begin
 	endcase
 end
 
-always @(posedge clk) begin
+always @(posedge clk) begin : vga_out_block
 	reg [23:0] dout1, dout2;
 	reg de1,de2,vs1,vs2,hs1,hs2,ce1,ce2;
 

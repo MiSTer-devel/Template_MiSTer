@@ -33,9 +33,9 @@ set_false_path -from {get_ports {SW[*]}}
 set_false_path -to   {cfg[*]}
 set_false_path -from {cfg[*]}
 set_false_path -from {VSET[*]}
-set_false_path -to   {wcalc[*] hcalc[*]}
+set_false_path -to   {video_calc_block.wcalc[*] video_calc_block.hcalc[*]}
 set_false_path -to   {hdmi_width[*] hdmi_height[*]}
-set_false_path -to   {deb_* btn_en btn_up}
+set_false_path -to   {user_button_block.deb_* btn_en btn_up}
 
 set_multicycle_path -to {*_osd|osd_vcnt*} -setup 2
 set_multicycle_path -to {*_osd|osd_vcnt*} -hold 1
@@ -48,8 +48,8 @@ set_false_path -from {*_osd|v_osd_start*}
 set_false_path -from {*_osd|v_info_start*}
 set_false_path -from {*_osd|h_osd_start*}
 set_false_path -from {*_osd|rot*}
-set_false_path -from {*_osd|dsp_width*}
-set_false_path -to   {*_osd|half}
+set_false_path -from {*_osd|osd_block.dsp_width*}
+set_false_path -to   {*_osd|osd_block.half}
 
 set_false_path -to   {WIDTH[*] HFP[*] HS[*] HBP[*] HEIGHT[*] VFP[*] VS[*] VBP[*]}
 set_false_path -from {WIDTH[*] HFP[*] HS[*] HBP[*] HEIGHT[*] VFP[*] VS[*] VBP[*]}

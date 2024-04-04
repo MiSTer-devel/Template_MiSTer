@@ -51,7 +51,7 @@ localparam FILTER_DIV = (CE_RATE/(AUDIO_RATE*32))-1;
 wire [31:0] real_ce = sample_rate ? {CE_RATE[30:0],1'b0} : CE_RATE[31:0];
 
 reg mclk_ce;
-always @(posedge clk) begin
+always @(posedge clk) begin : mclk_block
 	reg [31:0] cnt;
 
 	mclk_ce = 0;
@@ -63,7 +63,7 @@ always @(posedge clk) begin
 end
 
 reg i2s_ce;
-always @(posedge clk) begin
+always @(posedge clk) begin : i2s_block
 	reg div;
 	i2s_ce <= 0;
 	if(mclk_ce) begin
@@ -115,7 +115,7 @@ sigma_delta_dac #(15) sd_r
 );
 
 reg sample_ce;
-always @(posedge clk) begin
+always @(posedge clk) begin : sample_block
 	reg [8:0] div = 0;
 	reg [1:0] add = 0;
 
@@ -129,7 +129,7 @@ always @(posedge clk) begin
 end
 
 reg flt_ce;
-always @(posedge clk) begin
+always @(posedge clk) begin : filter_block
 	reg [31:0] cnt = 0;
 
 	flt_ce = 0;
@@ -141,7 +141,7 @@ always @(posedge clk) begin
 end
 
 reg [15:0] cl,cr;
-always @(posedge clk) begin
+always @(posedge clk) begin : cl_block
 	reg [15:0] cl1,cl2;
 	reg [15:0] cr1,cr2;
 
@@ -153,7 +153,7 @@ always @(posedge clk) begin
 end
 
 reg a_en1 = 0, a_en2 = 0;
-always @(posedge clk, posedge reset) begin
+always @(posedge clk, posedge reset) begin : dly_block
 	reg  [1:0] dly1 = 0;
 	reg [14:0] dly2 = 0;
 

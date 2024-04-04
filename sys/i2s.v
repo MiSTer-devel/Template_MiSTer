@@ -16,7 +16,7 @@ module i2s
 	input [AUDIO_DW-1:0]	right_chan
 );
 
-always @(posedge clk) begin
+always @(posedge clk) begin : i2s_audio_block
 	reg  [7:0] bit_cnt;
 	reg msclk;
 
