@@ -179,7 +179,8 @@ wire io_dig = mcp_en ? mcp_mode : SW[3];
 	wire   av_dis    = io_dig | VGA_EN;
 	assign LED_POWER = av_dis ? 1'bZ : mcp_en ? de1          : led_p ? 1'bZ : 1'b0;
 	assign LED_HDD   = av_dis ? 1'bZ : mcp_en ? (sog & ~cs1) : led_d ? 1'bZ : 1'b0;
-	assign LED_USER  = av_dis ? 1'bZ : mcp_en ? ~vga_tx_clk  : led_u ? 1'bZ : 1'b0;
+	//assign LED_USER  = av_dis ? 1'bZ : mcp_en ? ~vga_tx_clk  : led_u ? 1'bZ : 1'b0;
+	assign LED_USER  = VGA_TX_CLK;
 	wire   BTN_DIS   = VGA_EN;
 `else
 	wire   BTN_RESET = SDRAM2_DQ[9];
@@ -1314,6 +1315,32 @@ assign HDMI_TX_D  = hdmi_out_d;
 	`else
 		assign vga_tx_clk = clk_vid;
 	`endif
+
+	wire VGA_TX_CLK;
+	altddio_out
+	#(
+		.extend_oe_disable("OFF"),
+		.intended_device_family("Cyclone V"),
+		.invert_output("OFF"),
+		.lpm_hint("UNUSED"),
+		.lpm_type("altddio_out"),
+		.oe_reg("UNREGISTERED"),
+		.power_up_high("OFF"),
+		.width(1)
+	)
+	vgaclk_ddr
+	(
+		.datain_h(1'b0),
+		.datain_l(1'b1),
+		.outclock(vga_tx_clk),
+		.dataout(VGA_TX_CLK),
+		.aclr(~mcp_en & ~av_dis),
+		.aset(1'b0),
+		.oe(~av_dis & (mcp_en | ~led_u)),
+		.outclocken(1'b1),
+		.sclr(1'b0),
+		.sset(1'b0)
+	);
 `endif
 
 wire [23:0] vga_data_sl;
