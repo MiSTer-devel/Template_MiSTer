@@ -297,16 +297,16 @@ endmodule
 
 module Blend
 (
-	input         clk,
-	input         clk_en,
-	input   [5:0] rule,
-	input  [23:0] E,
-	input  [23:0] A,
-	input  [23:0] B,
-	input  [23:0] D,
-	input  [23:0] F,
-	input  [23:0] H,
-	output [23:0] Result
+	input             clk,
+	input             clk_en,
+	input       [5:0] rule,
+	input      [23:0] E,
+	input      [23:0] A,
+	input      [23:0] B,
+	input      [23:0] D,
+	input      [23:0] F,
+	input      [23:0] H,
+	output reg [23:0] Result
 );
 
 	localparam BLEND1 = 7'b110_10_00; // (A * 12 + B * 4        ) >> 4
