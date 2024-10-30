@@ -27,7 +27,7 @@
 // VDNUM 1..10
 // BLKSZ 0..7: 0 = 128, 1 = 256, 2 = 512(default), .. 7 = 16384
 //
-module hps_io #(parameter CONF_STR="", CONF_STR_BRAM=1, PS2DIV=0, WIDE=0, VDNUM=1, BLKSZ=2, PS2WE=0, STRLEN=$size(CONF_STR)>>3)
+module hps_io #(parameter CONF_STR, CONF_STR_BRAM=0, PS2DIV=0, WIDE=0, VDNUM=1, BLKSZ=2, PS2WE=0, STRLEN=$size(CONF_STR)>>3)
 (
 	input             clk_sys,
 	inout      [48:0] HPS_BUS,
