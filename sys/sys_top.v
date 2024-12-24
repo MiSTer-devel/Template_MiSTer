@@ -128,12 +128,13 @@ module sys_top
 wire SD_CS, SD_CLK, SD_MOSI, SD_MISO, SD_CD;
 
 `ifndef MISTER_DUAL_SDRAM
-	assign SD_CD       = mcp_en ? mcp_sdcd : SDCD_SPDIF;
+	wire   sd_cd       = SDCD_SPDIF & ~SW[2]; // SW[2]=ON workaround for faulty boards without SD card detect pin.
+	assign SD_CD       = mcp_en ? mcp_sdcd : sd_cd;
 	assign SD_MISO     = SD_CD | (mcp_en ? SD_SPI_MISO : (VGA_EN | SDIO_DAT[0]));
 	assign SD_SPI_CS   = mcp_en ?  (mcp_sdcd  ? 1'bZ : SD_CS) : (sog & ~cs1 & ~VGA_EN) ? 1'b1 : 1'bZ;
 	assign SD_SPI_CLK  = (~mcp_en | mcp_sdcd) ? 1'bZ : SD_CLK;
 	assign SD_SPI_MOSI = (~mcp_en | mcp_sdcd) ? 1'bZ : SD_MOSI;
-	assign {SDIO_CLK,SDIO_CMD,SDIO_DAT} = av_dis ? 6'bZZZZZZ : (mcp_en | (SDCD_SPDIF & ~SW[2])) ? {vga_g,vga_r,vga_b} : {SD_CLK,SD_MOSI,SD_CS,3'bZZZ};
+	assign {SDIO_CLK,SDIO_CMD,SDIO_DAT} = av_dis ? 6'bZZZZZZ : (mcp_en | sd_cd) ? {vga_g,vga_r,vga_b} : {SD_CLK,SD_MOSI,SD_CS,3'bZZZ};
 `else
 	assign SD_CD       = mcp_sdcd;
 	assign SD_MISO     = mcp_sdcd | SD_SPI_MISO;
