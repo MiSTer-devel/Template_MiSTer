@@ -34,7 +34,7 @@ module ddr_svc
 	output  [7:0] ram_byteenable,
 	output reg    ram_write,
 
-	output  [7:0] ram_bcnt,
+	output reg [7:0] ram_bcnt,
 
 	input  [31:3] ch0_addr,
 	input   [7:0] ch0_burst,
