@@ -741,6 +741,7 @@ wire         bob_deint;
 		.o_de     (hdmi_de),
 		.o_vbl    (hdmi_vbl),
 		.o_brd    (hdmi_brd),
+		.gun_border_en(gun_border_en),
 		.o_lltune (lltune),
 		.htotal   (WIDTH + HFP + HBP + HS[11:0]),
 		.hsstart  (WIDTH + HFP),
@@ -1712,6 +1713,8 @@ wire [13:0] fb_stride;
 
 reg  [1:0] sl_r;
 wire [1:0] sl = sl_r;
+wire       gun_border_en;
+
 always @(posedge clk_sys) sl_r <= FB_EN ? 2'b00 : scanlines;
 
 emu emu
@@ -1831,6 +1834,8 @@ emu emu
 	.UART_TXD(uart_rxd),
 	.UART_DTR(uart_dsr),
 	.UART_DSR(uart_dtr),
+	
+	.GUN_BORDER_EN(gun_border_en),
 
 	.USER_OUT(user_out),
 	.USER_IN(user_in)

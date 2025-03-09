@@ -56,7 +56,8 @@ module emu
 	output        HDMI_FREEZE,
 	output        HDMI_BLACKOUT,
 	output        HDMI_BOB_DEINT,
-
+        output        GUN_BORDER_EN,
+	
 `ifdef MISTER_FB
 	// Use framebuffer in DDRAM
 	// FB_FORMAT:
