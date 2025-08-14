@@ -500,13 +500,19 @@ always@(posedge clk_sys) begin
 				endcase
 			end
 `endif
+			// Subcarrier commands (independent of YC module)
+			if(cmd == 'h41) begin
+				case(cnt[3:0])
+					 1: PhaseInc[15:0]         <= io_din;
+					 2: PhaseInc[31:16]        <= io_din;
+					 3: PhaseInc[39:32]        <= io_din[7:0];
+					 6: subcarrier             <= io_din[0];
+				endcase
+			end
 `ifndef MISTER_DISABLE_YC
 			if(cmd == 'h41) begin
 				case(cnt[3:0])
 					 0: {pal_en,cvbs,yc_en}    <= io_din[2:0];
-					 1: PhaseInc[15:0]         <= io_din;
-					 2: PhaseInc[31:16]        <= io_din;
-					 3: PhaseInc[39:32]        <= io_din[7:0];
 					 4: ColorBurst_Range[15:0] <= io_din;
 					 5: ColorBurst_Range[16]   <= io_din[0];
 				endcase
@@ -1394,12 +1400,24 @@ osd vga_osd
 wire vga_cs_osd;
 csync csync_vga(clk_vid, vga_hs_osd, vga_vs_osd, vga_cs_osd);
 
+// Subcarrier generation for external encoders (independent of YC module)
+reg         subcarrier;
+reg  [39:0] PhaseInc;
+wire        subcarrier_out;
+
+subcarrier subcarrier_gen
+(
+	.clk(clk_vid),
+	.PHASE_INC(PhaseInc),
+	.subcarrier_enable(subcarrier),
+	.subcarrier_out(subcarrier_out)
+);
+
 `ifndef MISTER_DISABLE_YC
 	reg         pal_en;
 	reg         yc_en;
 	reg         cvbs;
 	reg  [16:0] ColorBurst_Range;
-	reg  [39:0] PhaseInc;
 	wire [23:0] yc_o;
 	wire        yc_hs, yc_vs, yc_cs, yc_de;
 
@@ -1476,7 +1494,14 @@ csync csync_vga(clk_vid, vga_hs_osd, vga_vs_osd, vga_cs_osd);
 	wire cs1 = vgas_en ? vgas_cs : vga_cs;
 	wire de1 = vgas_en ? vgas_de : vga_de;
 
-	assign VGA_VS = av_dis ? 1'bZ      : ((vgas_en ? (~vgas_vs ^ VS[12])                         : VGA_DISABLE ? 1'd1 : ~vga_vs) | csync_en);
+	// External encoder mode: RGB + composite_sync + not forced_scandoubler
+	wire external_encoder_mode = ~ypbpr_en & csync_en & ~cfg[4];
+	wire subcarrier_active = external_encoder_mode & subcarrier;
+
+	wire vga_vs_final = subcarrier_active ? subcarrier_out :
+	                    direct_video ? vs_emu :
+	                    ((vgas_en ? (~vgas_vs ^ VS[12]) : VGA_DISABLE ? 1'd1 : ~vga_vs) | csync_en);
+	assign VGA_VS = av_dis ? 1'bZ : vga_vs_final;
 	assign VGA_HS = av_dis ? 1'bZ      :  (vgas_en ? ((csync_en ? ~vgas_cs : ~vgas_hs) ^ HS[12]) : VGA_DISABLE ? 1'd1 : (csync_en ? ~vga_cs : ~vga_hs));
 	assign VGA_R  = av_dis ? 6'bZZZZZZ :   vgas_en ? vgas_o[23:18]                               : VGA_DISABLE ? 6'd0 : vga_o[23:18];
 	assign VGA_G  = av_dis ? 6'bZZZZZZ :   vgas_en ? vgas_o[15:10]                               : VGA_DISABLE ? 6'd0 : vga_o[15:10];
