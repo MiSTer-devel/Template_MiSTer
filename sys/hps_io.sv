@@ -166,7 +166,12 @@ module hps_io #(parameter CONF_STR, CONF_STR_BRAM=0, PS2DIV=0, WIDE=0, VDNUM=1, 
 	output reg [31:0] uart_speed,
 
 	// for core-specific extensions
-	inout      [35:0] EXT_BUS
+	inout      [35:0] EXT_BUS,
+	
+	// is modifier key requested to raise fremework menu? 
+	//  0 - no, F12 bring framework menu
+	//  1 - F12 is passed to core, F12 + (L/R)GUI key bring framework menu
+	input             f12_key_menu_mod
 );
 
 assign EXT_BUS[31:16] = HPS_BUS[31:16];
@@ -335,6 +340,8 @@ always@(posedge clk_sys) begin : uio_block
 				  'h36: begin io_dout <= info_n; info_n <= 0; end
 				  'h39: io_dout <= 1;
 				  'h3C: if(upload_req) begin io_dout <= {ioctl_upload_index, 8'd1}; upload_req <= 0; end
+				  'h43: io_dout <= f12_key_menu_mod;
+				  
 				  'h3E: io_dout <= 1; // shadow mask
 				'h003F: io_dout <= joystick_0_rumble;
 				'h013F: io_dout <= joystick_1_rumble;
