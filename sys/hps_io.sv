@@ -673,7 +673,6 @@ always@(posedge clk_sys) begin : fio_block
 								0:	if(io_din[7:0] == 8'hAA) begin
 										ioctl_addr <= 0;
 										ioctl_upload <= 1;
-										ioctl_rd <= 1;
 									end
 									else if(io_din[7:0]) begin
 										addr <= 0;
@@ -693,6 +692,7 @@ always@(posedge clk_sys) begin : fio_block
 								2: begin
 										ioctl_addr[26:16] <= io_din[10:0];
 										addr[26:16] <= io_din[10:0];
+										ioctl_rd <= 1;
 									end
 							endcase
 						end
