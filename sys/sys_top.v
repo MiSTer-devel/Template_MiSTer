@@ -357,8 +357,10 @@ always@(posedge clk_sys) begin
 	reg        vs_d0,vs_d1,vs_d2;
 	reg  [4:0] acx_att;
 	reg  [7:0] fb_crc;
+	reg  [1:0] sl_r;
 
 	coef_wr <= 0;
+	sl_r <= FB_EN ? 2'b00 : scanlines;
 
 `ifndef MISTER_DEBUG_NOHDMI
 	shadowmask_wr <= 0;
@@ -390,8 +392,16 @@ always@(posedge clk_sys) begin
 				acy1 <=  24'd6143386;
 				acy2 <= -24'd2023767;
 				areset <= 1;
+				io_dout_sys <= 1;
 			end
 			if(io_din[7:0] == 'h20) io_dout_sys <= 'b11;
+`ifdef MISTER_DISABLE_ADAPTIVE
+			if(io_din[7:0] == 'h2B) io_dout_sys <= {fb_en, sl_r, 4'b0110};
+`else
+			if(io_din[7:0] == 'h2B) io_dout_sys <= {fb_en, sl_r, 4'b0111};
+`endif
+			if(io_din[7:0] == 'h2F) io_dout_sys <= 1;
+			if(io_din[7:0] == 'h3E) io_dout_sys <= 1;
 `ifndef MISTER_DEBUG_NOHDMI
 			if(io_din[7:0] == 'h40) io_dout_sys <= fb_crc;
 `endif
@@ -1740,15 +1750,11 @@ wire [13:0] fb_stride;
 	assign fb_stride = 0;
 `endif
 
-reg  [1:0] sl_r;
-wire [1:0] sl = sl_r;
-always @(posedge clk_sys) sl_r <= FB_EN ? 2'b00 : scanlines;
-
 emu emu
 (
 	.CLK_50M(FPGA_CLK2_50),
 	.RESET(reset),
-	.HPS_BUS({fb_en, sl, f1, HDMI_TX_VS, 
+	.HPS_BUS({f1, HDMI_TX_VS, 
 				 clk_100m, clk_ihdmi,
 				 ce_hpix, hde_emu, hhs_fix, hvs_fix, 
 				 io_wait, clk_sys, io_fpga, io_uio, io_strobe, io_wide, io_din, io_dout}),
