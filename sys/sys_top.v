@@ -316,6 +316,7 @@ reg [31:0] cfg_custom_p2;
 
 reg  [4:0] vol_att;
 initial vol_att = 5'b11111;
+reg  [1:0] vol_boost = 0;
 
 reg  [11:0] coef_addr;
 reg  [9:0] coef_data;
@@ -392,7 +393,7 @@ always@(posedge clk_sys) begin
 				acy1 <=  24'd6143386;
 				acy2 <= -24'd2023767;
 				areset <= 1;
-				io_dout_sys <= 1;
+				io_dout_sys <= 'b11;
 			end
 			if(io_din[7:0] == 'h20) io_dout_sys <= 'b11;
 `ifdef MISTER_DISABLE_ADAPTIVE
@@ -472,7 +473,7 @@ always@(posedge clk_sys) begin
 			if(cmd == 'h38) vs_line <= io_din[11:0];
 			if(cmd == 'h39) begin
 				case(cnt[3:0])
-					 0: acx_att          <= io_din[4:0];
+					 0: {vol_boost,acx_att} <= io_din[6:0];
 					 1: aflt_rate[15:0]  <= io_din;
 					 2: aflt_rate[31:16] <= io_din;
 					 3: acx[15:0]        <= io_din;
@@ -1581,6 +1582,7 @@ audio_out audio_out
 	.clk(clk_audio),
 
 	.att(vol_att),
+	.boost(vol_boost),
 	.mix(audio_mix),
 	.sample_rate(audio_96k),
 
