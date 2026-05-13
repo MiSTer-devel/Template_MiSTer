@@ -231,7 +231,7 @@ end
 
 // gp_in[31] = 0 - quick flag that FPGA is initialized (HPS reads 1 when FPGA is not in user mode)
 //                 used to avoid lockups while JTAG loading
-wire [31:0] gp_in = {1'b0, btn_user | btn[1], btn_osd | btn[0], io_dig, 8'd0, io_ver, io_ack, io_wide, io_dout | io_dout_sys};
+wire [31:0] gp_in = {1'b0, btn_user | btn[1], btn_osd | btn[0], io_dig, 7'd0, ~HDMI_TX_INT, io_ver, io_ack, io_wide, io_dout | io_dout_sys};
 wire [31:0] gp_out;
 
 wire  [1:0] io_ver = 1; // 0 - obsolete. 1 - optimized HPS I/O. 2,3 - reserved for future.
@@ -407,6 +407,7 @@ always@(posedge clk_sys) begin
 			if(io_din[7:0] == 'h40) io_dout_sys <= fb_crc;
 `endif
 			if(io_din[7:0] == 'h42) io_dout_sys <= {1'b1, frame_cnt};
+			if(io_din[7:0] == 'h44) io_dout_sys <= 1;
 		end
 		else begin
 			cnt <= cnt + 1'd1;
