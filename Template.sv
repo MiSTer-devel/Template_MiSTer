@@ -152,6 +152,7 @@ assign CE_PIXEL = ce_pix;
 assign VGA_DE = ~(HBlank | VBlank);
 assign VGA_HS = HSync;
 assign VGA_VS = VSync;
+assign VGA_HSIZE = 3'd0;   // bypass analog H-Size (drive 1..7 to widen analog viewport only)
 assign VGA_G  = (!col || col == 2) ? video : 8'd0;
 assign VGA_R  = (!col || col == 1) ? video : 8'd0;
 assign VGA_B  = (!col || col == 3) ? video : 8'd0;

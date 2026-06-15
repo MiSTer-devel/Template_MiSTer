@@ -1398,6 +1398,55 @@ scanlines #(0) VGA_scanlines
 	.ce_out(vga_ce_sl)
 );
 
+// ── Analog VGA H-Size (analog_hsize) ─────────────────────────────────────────
+// Inserted BEFORE vga_osd: widens the analog VGA viewport on the analog
+// branch only, the OSD is then composited on the stretched stream so it
+// remains visually anchored on the CRT.
+// Analog branch ONLY. HDMI taps from vga_data_sl upstream (around line ~1701,
+// hr_out/hg_out/hb_out) so it is bit-identical to before.
+// UNIFORM RECTANGULAR PIXELS: vga_ce_sl2 is a ce with EXACT integer divisor
+// (16+hsize_emu) of clk_vid. The counter resets on every rising HSync to
+// guarantee deterministic phase per line (sync to the frame), yet keeps an
+// exact modulus during the line -> every DAC pixel lasts EXACTLY (16+hsize)
+// clk_vid cycles, identical to every other pixel.
+// No shimmering (no fractional rate), no trembling (HSync-locked phase).
+reg vga_hs_sl_d;
+always @(posedge clk_vid) vga_hs_sl_d <= vga_hs_sl;
+wire vga_hs_rise = vga_hs_sl & ~vga_hs_sl_d;
+
+reg [4:0] vga_ce_div;
+wire [4:0] vga_ce_max = 5'd15 + {2'd0, hsize_emu};
+always @(posedge clk_vid) begin
+	if      (vga_hs_rise)                    vga_ce_div <= 5'd0;
+	else if (vga_ce_div == vga_ce_max)       vga_ce_div <= 5'd0;
+	else                                      vga_ce_div <= vga_ce_div + 5'd1;
+end
+wire vga_ce_sl2 = (hsize_emu == 3'd0) ? vga_ce_sl : (vga_ce_div == 5'd0);
+
+wire [23:0] vga_data_hs;
+wire        vga_hs_hs, vga_vs_hs, vga_de_hs, vga_hb_hs, vga_vb_hs;
+analog_hsize u_analog_hsize (
+	.clk      (clk_vid),
+	.pxl_cen  (vga_ce_sl),
+	.pxl2_cen (vga_ce_sl2),
+	.hsize    (hsize_emu_s),
+	.r_in     (vga_data_sl[23:16]),
+	.g_in     (vga_data_sl[15:8]),
+	.b_in     (vga_data_sl[7:0]),
+	.hs_in    (vga_hs_sl),
+	.vs_in    (vga_vs_sl),
+	.hb_in    (~vga_de_sl),
+	.vb_in    (~vga_de_sl),
+	.r_out    (vga_data_hs[23:16]),
+	.g_out    (vga_data_hs[15:8]),
+	.b_out    (vga_data_hs[7:0]),
+	.hs_out   (vga_hs_hs),
+	.vs_out   (vga_vs_hs),
+	.hb_out   (vga_hb_hs),
+	.vb_out   (vga_vb_hs)
+);
+assign vga_de_hs = ~vga_hb_hs & ~vga_vb_hs;
+
 wire [23:0] vga_data_osd;
 wire        vga_vs_osd, vga_hs_osd, vga_de_osd;
 osd vga_osd
@@ -1410,10 +1459,10 @@ osd vga_osd
 	.osd_status(osd_status),
 
 	.clk_video(clk_vid),
-	.din(vga_data_sl),
-	.hs_in(vga_hs_sl),
-	.vs_in(vga_vs_sl),
-	.de_in(vga_de_sl),
+	.din(vga_data_hs),
+	.hs_in(vga_hs_hs),
+	.vs_in(vga_vs_hs),
+	.de_in(vga_de_hs),
 
 	.dout(vga_data_osd),
 	.hs_out(vga_hs_osd),
@@ -1688,6 +1737,15 @@ wire        hvs_fix, hhs_fix, hde_emu;
 wire        clk_vid, ce_pix, clk_ihdmi, ce_hpix;
 wire        vga_force_scaler;
 
+// Analog VGA H-Size: 3-bit unsigned value coming from the core (`VGA_HSIZE`
+// output of the `emu` module). 0 = bypass (analog branch unaffected),
+// 1..7 = progressively wider analog viewport. Defaults to 3'd0 if the core
+// does not drive the port. The signed conversion below is for the
+// analog_hsize module: positive widening corresponds to negative `hsize`
+// internally (the module stretches with a negative scale factor).
+wire  [2:0] hsize_emu;
+wire signed [3:0] hsize_emu_s = -$signed({1'b0, hsize_emu});
+
 wire        ram_clk;
 wire [28:0] ram_address;
 wire [7:0]  ram_burstcount;
@@ -1768,6 +1826,7 @@ emu emu
 	.VGA_HS(hs_emu),
 	.VGA_VS(vs_emu),
 	.VGA_DE(de_emu),
+	.VGA_HSIZE(hsize_emu),
 	.VGA_F1(f1),
 	.VGA_SCALER(vga_force_scaler),
 
