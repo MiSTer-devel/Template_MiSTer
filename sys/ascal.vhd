@@ -434,7 +434,7 @@ ARCHITECTURE rtl OF ascal IS
 	SIGNAL avl_walt,avl_wline,avl_rline : std_logic;
 	SIGNAL avl_dw,avl_dr : unsigned(N_DW-1 DOWNTO 0);
 	SIGNAL avl_wr : std_logic;
-	SIGNAL avl_rackg,avl_dackg : unsigned(3 DOWNTO 0);
+	SIGNAL avl_rackg,avl_dackg : unsigned(1 DOWNTO 0);
 	SIGNAL avl_radrs,avl_wadrs : unsigned(31 DOWNTO 0);
 	SIGNAL avl_i_offset0,avl_o_offset0 : unsigned(31 DOWNTO 0);
 	SIGNAL avl_i_offset1,avl_o_offset1 : unsigned(31 DOWNTO 0);
@@ -496,9 +496,9 @@ ARCHITECTURE rtl OF ascal IS
 	SIGNAL o_copy : enum_o_copy;
 	SIGNAL o_pshift : natural RANGE 0 TO 15;
 	SIGNAL o_readack,o_readdataack : std_logic;
-	SIGNAL o_rack_sync,o_rack_sync2,o_rack_sync3 : unsigned(3 DOWNTO 0);
-	SIGNAL o_dack_sync,o_dack_sync2,o_dack_sync3 : unsigned(3 DOWNTO 0);
-	SIGNAL o_rackg,o_dackg : unsigned(3 DOWNTO 0);
+	SIGNAL o_rack_sync,o_rack_sync2,o_rack_sync3 : unsigned(1 DOWNTO 0);
+	SIGNAL o_dack_sync,o_dack_sync2,o_dack_sync3 : unsigned(1 DOWNTO 0);
+	SIGNAL o_rackg,o_dackg : unsigned(1 DOWNTO 0);
 	SIGNAL o_copyv : unsigned(0 TO 14);
 	SIGNAL o_adrs : unsigned(31 DOWNTO 0); -- Avalon address
 	SIGNAL o_adrs_pre : natural RANGE 0 TO 2**24-1;
