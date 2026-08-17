@@ -8,6 +8,7 @@ module mycore
 	input         scandouble,
 
 	output reg    ce_pix,
+	output        hvcnt_atzero,
 
 	output reg    HBlank,
 	output reg    HSync,
@@ -17,9 +18,9 @@ module mycore
 	output  [7:0] video
 );
 
-reg   [9:0] hc;
-reg   [9:0] vc;
-reg   [9:0] vvc;
+reg   [9:0] hc = 0;
+reg   [9:0] vc = 0;
+reg   [9:0] vvc = 0;
 reg  [63:0] rnd_reg;
 
 wire  [5:0] rnd_c = {rnd_reg[0],rnd_reg[1],rnd_reg[2],rnd_reg[2],rnd_reg[2],rnd_reg[2]};
@@ -27,18 +28,18 @@ wire [63:0] rnd;
 
 lfsr random(rnd);
 
+// In case the H/V counters need to be cleared after a reset, feed a signal to release
+// the reset at the right time.
+assign hvcnt_atzero = ce_pix && !hc && !vc;
+
 always @(posedge clk) begin
 	if(scandouble) ce_pix <= 1;
 		else ce_pix <= ~ce_pix;
 
-	if(reset) begin
-		hc <= 0;
-		vc <= 0;
-	end
-	else if(ce_pix) begin
+	if(ce_pix) begin
 		if(hc == 637) begin
 			hc <= 0;
-			if(vc == (pal ? (scandouble ? 623 : 311) : (scandouble ? 523 : 261))) begin 
+			if(vc >= (pal ? (scandouble ? 623 : 311) : (scandouble ? 523 : 261))) begin
 				vc <= 0;
 				vvc <= vvc + 9'd6;
 			end else begin
@@ -50,6 +51,8 @@ always @(posedge clk) begin
 
 		rnd_reg <= rnd;
 	end
+
+	if(reset) vvc <= 0;
 end
 
 always @(posedge clk) begin

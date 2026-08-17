@@ -126,17 +126,27 @@ wire HSync;
 wire VBlank;
 wire VSync;
 wire ce_pix;
+wire hvcnt_atzero;
 wire [7:0] video;
+
+// Leave H/V sync always on. This stabilizes the video output while the core
+// is in reset. This example releases the reset when H/V counters are at zero.
+reg reset_core = 1;
+always @(posedge clk_sys) begin
+	if(reset) reset_core <= 1;
+	else if(hvcnt_atzero) reset_core <= 0;
+end
 
 mycore mycore
 (
 	.clk(clk_sys),
-	.reset(reset),
-	
+	.reset(reset_core),
+
 	.pal(status[2]),
 	.scandouble(forced_scandoubler),
 
 	.ce_pix(ce_pix),
+	.hvcnt_atzero(hvcnt_atzero),
 
 	.HBlank(HBlank),
 	.HSync(HSync),
