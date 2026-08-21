@@ -310,7 +310,7 @@ wire       io_osd_vga   = io_ss1 & ~io_ss2;
 	`endif
 `endif
 
-reg        cfg_custom_t = 0;
+reg        cfg_custom_wr = 0;
 reg  [5:0] cfg_custom_p1;
 reg [31:0] cfg_custom_p2;
 
@@ -361,6 +361,7 @@ always@(posedge clk_sys) begin
 	reg  [1:0] sl_r;
 
 	coef_wr <= 0;
+	cfg_custom_wr <= 0;
 	sl_r <= FB_EN ? 2'b00 : scanlines;
 
 `ifndef MISTER_DEBUG_NOHDMI
@@ -433,7 +434,7 @@ always@(posedge clk_sys) begin
 					if(cnt == 1) begin
 						cfg_custom_p1 <= 0;
 						cfg_custom_p2 <= 0;
-						cfg_custom_t <= ~cfg_custom_t;
+						cfg_custom_wr <= 1;
 					end
 				end
 				else begin
@@ -441,7 +442,7 @@ always@(posedge clk_sys) begin
 					if(cnt[1:0]==1) cfg_custom_p2[15:0]  <= io_din;
 					if(cnt[1:0]==2) begin
 						cfg_custom_p2[31:16] <= io_din;
-						cfg_custom_t <= ~cfg_custom_t;
+						cfg_custom_wr <= 1;
 						cnt[2:0] <= 3'b100;
 					end
 					if(cnt == 8) {lowlat,cfg_done} <= {io_din[15],1'b1};
@@ -1066,9 +1067,9 @@ wire        cfg_waitrequest,adj_waitrequest;
 wire        cfg_write;
 wire  [5:0] cfg_address;
 wire [31:0] cfg_data;
-reg         adj_write;
-reg   [5:0] adj_address;
-reg  [31:0] adj_data;
+wire        adj_write;
+wire  [5:0] adj_address;
+wire [31:0] adj_data;
 
 `ifndef MISTER_DEBUG_NOHDMI
 	pll_cfg_hdmi pll_cfg_hdmi
@@ -1083,10 +1084,16 @@ reg  [31:0] adj_data;
 		.reconfig_from_pll(reconfig_from_pll)
 	);
 
+	wire cfg_ready;
 	reg cfg_got = 0;
+	(* altera_attribute = {"-name SYNCHRONIZER_IDENTIFICATION FORCED_IF_ASYNCHRONOUS"} *)
+	reg cfg_ready_meta = 0, cfg_ready_sys = 0;
 	always @(posedge clk_sys) begin
 		reg vsd, vsd2;
-		if(~cfg_ready || ~cfg_set) cfg_got <= cfg_set;
+		cfg_ready_meta <= cfg_ready;
+		cfg_ready_sys  <= cfg_ready_meta;
+
+		if(~cfg_ready_sys || ~cfg_set) cfg_got <= cfg_set;
 		else begin
 			vsd  <= HDMI_TX_VS;
 			vsd2 <= vsd;
@@ -1094,34 +1101,24 @@ reg  [31:0] adj_data;
 		end
 	end
 
-	reg cfg_ready = 0;
-	always @(posedge FPGA_CLK1_50) begin
-		reg gotd = 0, gotd2 = 0;
-		reg custd = 0, custd2 = 0;
-		reg old_wait = 0;
+	wire pll_cmd_overflow;
+	pll_config_bridge pll_config_bridge
+	(
+		.src_clk           (clk_sys),
+		.reset             (reset_req),
+		.src_valid         (cfg_custom_wr),
+		.src_address       (cfg_custom_p1),
+		.src_data          (cfg_custom_p2),
+		.src_start         (cfg_got),
+		.src_overflow      (pll_cmd_overflow),
 
-		gotd  <= cfg_got;
-		gotd2 <= gotd;
-		
-		adj_write <= 0;
-		
-		custd <= cfg_custom_t;
-		custd2 <= custd;
-		if(custd2 != custd & ~gotd) begin
-			adj_address <= cfg_custom_p1;
-			adj_data <= cfg_custom_p2;
-			adj_write <= 1;
-		end
-
-		if(~gotd2 & gotd) begin
-			adj_address <= 2;
-			adj_data <= 0;
-			adj_write <= 1;
-		end
-
-		old_wait <= adj_waitrequest;
-		if(old_wait & ~adj_waitrequest & gotd) cfg_ready <= 1;
-	end
+		.dst_clk           (FPGA_CLK1_50),
+		.dst_waitrequest   (adj_waitrequest),
+		.dst_write         (adj_write),
+		.dst_address       (adj_address),
+		.dst_data          (adj_data),
+		.ready             (cfg_ready)
+	);
 `else
 	wire cfg_ready = 1;
 `endif

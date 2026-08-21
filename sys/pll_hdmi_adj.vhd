@@ -238,9 +238,9 @@ BEGIN
   -- 000111 : M counter Fractional Value K
   
   Comb:PROCESS(i_write,i_address,
-               i_writedata,pwrite,paddress,pdata) IS
+               i_writedata,pwrite,paddress,pdata,state) IS
   BEGIN
-    IF i_write='1' THEN
+    IF i_write='1' AND state=sIDLE THEN
       o_write      <=i_write;
       o_address    <=i_address;
       o_writedata  <=i_writedata;
@@ -251,7 +251,7 @@ BEGIN
     END IF;
   END PROCESS Comb;
   
-  i_waitrequest<=o_waitrequest WHEN state=sIDLE ELSE '0';
+  i_waitrequest<=o_waitrequest WHEN state=sIDLE ELSE '1';
     
   ----------------------------------------------------------------------------
   Schmurtz:PROCESS(clk,reset_na) IS
@@ -430,4 +430,3 @@ BEGIN
   ----------------------------------------------------------------------------
   
 END ARCHITECTURE rtl;
-
