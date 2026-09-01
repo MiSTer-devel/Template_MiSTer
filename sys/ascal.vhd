@@ -511,6 +511,8 @@ ARCHITECTURE rtl OF ascal IS
 	SIGNAL o_lex0,o_lex1,o_lex2,o_lex3       : std_logic;
 	SIGNAL o_wr : unsigned(3 DOWNTO 0);
 	SIGNAL o_hcpt,o_vcpt,o_vcpt_pre,o_vcpt_pre2,o_vcpt_pre3,o_vcpt2 : uint12;
+	-- Registered end-of-line flag for the output raster. See OSWEEP.
+	SIGNAL o_hcpt_last : std_logic := '0';
 	SIGNAL o_ihsize,o_ihsizem,o_ivsize : uint12;
 	SIGNAL o_ihsize_temp, o_ihsize_temp2 : natural RANGE 0 TO 32767;
 
@@ -2775,11 +2777,19 @@ BEGIN
 		IF rising_edge(o_clk) THEN
 
 			IF o_ce='1' THEN
-				-- Output pixels count
-				IF o_hcpt+1<o_htotal THEN
+				-- Output pixels count.
+				-- End-of-line is evaluated one cycle ahead, into a register:
+				-- o_hcpt+2>=o_htotal at cycle N-1 is o_hcpt+1>=o_htotal at
+				-- cycle N. This takes the add + compare out of the o_hcpt
+				-- feedback loop and off the o_vcpt* clock enables. When
+				-- o_htotal changes (power-up, video mode set) the flag reacts
+				-- one cycle late, only shifting the free-running raster's phase.
+				IF o_hcpt_last='0' THEN
 					o_hcpt<=(o_hcpt+1) MOD 4096;
+					o_hcpt_last<=to_std_logic(o_hcpt+2>=o_htotal);
 				ELSE
 					o_hcpt<=0;
+					o_hcpt_last<=to_std_logic(1>=o_htotal);
 
 					IF o_vcpt_sync /= 4095 THEN
 						o_vcpt_sync <= o_vcpt_sync+1;
