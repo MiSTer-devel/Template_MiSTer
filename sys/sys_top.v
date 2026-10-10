@@ -1781,6 +1781,12 @@ emu emu
 	.HDMI_BLACKOUT(hdmi_blackout),
 	.HDMI_BOB_DEINT(bob_deint),
 
+	.LFB_FMT(LFB_FMT),
+	.LFB_BASE(LFB_BASE),
+	.LFB_WIDTH(LFB_WIDTH),
+	.LFB_HEIGHT(LFB_HEIGHT),
+	.LFB_STRIDE(LFB_STRIDE),
+
 	.CLK_VIDEO(clk_vid),
 	.CE_PIXEL(ce_pix),
 	.VGA_SL(scanlines),
