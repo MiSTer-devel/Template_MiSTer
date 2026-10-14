@@ -1400,7 +1400,7 @@ scanlines #(0) VGA_scanlines
 
 wire [23:0] vga_data_osd;
 wire        vga_vs_osd, vga_hs_osd, vga_de_osd;
-osd vga_osd
+osd #(.ROUND(1)) vga_osd
 (
 	.clk_sys(clk_sys),
 

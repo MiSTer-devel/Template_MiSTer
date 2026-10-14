@@ -22,6 +22,7 @@ module osd
 );
 
 parameter  OSD_COLOR    =  3'd4;
+parameter  ROUND        =  0;
 
 localparam OSD_WIDTH    = 12'd256;
 localparam OSD_HEIGHT   = 12'd64;
@@ -103,6 +104,7 @@ end
 always @(posedge clk_video) begin
 	reg [21:0] cnt = 0;
 	reg [21:0] pixsz, pixcnt;
+	reg [21:0] w;
 	reg deD;
 
 	cnt <= cnt + 1'd1;
@@ -115,7 +117,8 @@ always @(posedge clk_video) begin
 	if(~deD && de_in) cnt <= 0;
 
 	if(deD && ~de_in) begin
-		pixsz  <= (((cnt+1'b1) >> (9-rot[0])) > 1) ? (((cnt+1'b1) >> (9-rot[0])) - 1'd1) : 22'd0;
+		w = (cnt + 1'b1 + (ROUND ? (22'd256 >> rot[0]) : 22'd0)) >> (9-rot[0]);
+		pixsz  <= (w > 1) ? (w - 1'd1) : 22'd0;
 		pixcnt <= 0;
 	end
 end
