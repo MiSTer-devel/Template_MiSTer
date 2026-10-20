@@ -73,5 +73,21 @@ set_false_path -from {ascal|o_htotal* ascal|o_vtotal*}
 set_false_path -from {ascal|o_hsstart* ascal|o_vsstart* ascal|o_hsend* ascal|o_vsend*}
 set_false_path -from {ascal|o_hsize* ascal|o_vsize*}
 
+# video_calc hands its measurements to clk_sys with a req/ack handshake.
+# Only the first synchronizer stages and the held data are cut. hold_q takes
+# hold_d two clk_sys edges after req_m, so the held data only needs its routing
+# limited to 5 ns. This holds while two clk_sys periods exceed 5 ns plus the
+# clock skew and the setup time of hold_q.
+set_false_path -to {*|video_calc|*|req_m}
+set_false_path -to {*|video_calc|*|ack_m}
+set_false_path -from [get_registers {*|video_calc|*|hold_d[*]}] -to [get_registers {*|video_calc|*|hold_q[*]}]
+set_net_delay -max 5 -from [get_registers {*|video_calc|*|hold_d[*]}] -to [get_registers {*|video_calc|*|hold_q[*]}]
+
+# vmode_m is removed by synthesis when the core ties new_vmode to a constant.
+set video_calc_vmode [get_registers -nowarn {*|video_calc|vmode_m}]
+if {[get_collection_size $video_calc_vmode]} {
+	set_false_path -to $video_calc_vmode
+}
+
 set_false_path -from {mcp23009|flg_*}
 set_false_path -to   {sysmem|fpga_interfaces|clocks_resets|f2h*}

@@ -870,32 +870,6 @@ module video_calc
 	output reg [15:0] dout
 );
 
-always @(posedge clk_sys) begin
-	case(par_num)
-		1: dout <= {video_rotated, |vid_int, vid_nres};
-		2: dout <= vid_hcnt[15:0];
-		3: dout <= vid_hcnt[31:16];
-		4: dout <= vid_vcnt[15:0];
-		5: dout <= vid_vcnt[31:16];
-		6: dout <= vid_htime[15:0];
-		7: dout <= vid_htime[31:16];
-		8: dout <= vid_vtime[15:0];
-		9: dout <= vid_vtime[31:16];
-	  10: dout <= vid_pix[15:0];
-	  11: dout <= vid_pix[31:16];
-	  12: dout <= vid_vtime_hdmi[15:0];
-	  13: dout <= vid_vtime_hdmi[31:16];
-	  14: dout <= vid_ccnt[15:0];
-	  15: dout <= vid_ccnt[31:16];
-	  16: dout <= vid_pixrep;
-	  17: dout <= vid_de_h;
-	  18: dout <= vid_de_v;
-	  19: dout <= vid_fclks[15:0];
-	  20: dout <= {8'd0, vid_fclks[23:16]};
-	  default dout <= 0;
-	endcase
-end
-
 reg [31:0] vid_hcnt = 0;
 reg [31:0] vid_vcnt = 0;
 reg [31:0] vid_ccnt = 0;
@@ -908,6 +882,13 @@ reg  [7:0] vid_de_v;
 // Exact clk_vid edges in one complete frame.
 // Count once after startup or a timing change, then hold the result.
 reg [23:0] vid_fclks = 0;
+
+(* altera_attribute = {"-name SYNCHRONIZER_IDENTIFICATION FORCED_IF_ASYNCHRONOUS"} *) reg vmode_m;
+(* altera_attribute = {"-name SYNCHRONIZER_IDENTIFICATION FORCED_IF_ASYNCHRONOUS"} *) reg vmode_s;
+always @(posedge clk_vid) begin
+	vmode_m <= new_vmode;
+	vmode_s <= vmode_m;
+end
 
 always @(posedge clk_vid) begin
 	integer hcnt;
@@ -950,11 +931,11 @@ always @(posedge clk_vid) begin
 			if(~f1) begin
 				// !f1 selects the same boundary once per complete frame.
 				if(hcnt && vcnt) begin
-					old_vmode <= new_vmode;
+					old_vmode <= vmode_s;
 
 					//report new resolution after timeout
 					if(resto) resto <= resto + 1'd1;
-					if(vid_hcnt != hcnt || vid_vcnt != vcnt || old_vmode != new_vmode) begin
+					if(vid_hcnt != hcnt || vid_vcnt != vcnt || old_vmode != vmode_s) begin
 						resto <= 1;
 						vid_fclks <= 0;
 					end
@@ -977,13 +958,19 @@ reg [31:0] vid_htime = 0;
 reg [31:0] vid_vtime = 0;
 reg [31:0] vid_pix = 0;
 
+(* altera_attribute = {"-name SYNCHRONIZER_IDENTIFICATION FORCED_IF_ASYNCHRONOUS"} *) reg old_vs0, old_hs0, old_de0, old_vsh0;
+
 always @(posedge clk_100) begin
 	integer vtime, htime, hcnt;
 	reg old_vs, old_hs, old_vs2, old_hs2, old_de, old_de2;
 	reg calch = 0;
 
-	old_vs <= vs;
-	old_hs <= hs;
+	old_vs0 <= vs;
+	old_hs0 <= hs;
+	old_de0 <= de;
+
+	old_vs <= old_vs0;
+	old_hs <= old_hs0;
 
 	old_vs2 <= old_vs;
 	old_hs2 <= old_hs;
@@ -1005,7 +992,7 @@ always @(posedge clk_100) begin
 		htime <= 0;
 	end
 
-	old_de   <= de;
+	old_de   <= old_de0;
 	old_de2  <= old_de;
 
 	if(calch & old_de) hcnt <= hcnt + 1;
@@ -1017,7 +1004,8 @@ always @(posedge clk_100) begin
 	integer vtime;
 	reg old_vs, old_vs2;
 
-	old_vs <= vs_hdmi;
+	old_vsh0 <= vs_hdmi;
+	old_vs <= old_vsh0;
 	old_vs2 <= old_vs;
 
 	vtime <= vtime + 1'd1;
@@ -1027,6 +1015,133 @@ always @(posedge clk_100) begin
 		vtime <= 0;
 	end
 end
+
+// The measurements are made in clk_vid and clk_100 and handed to clk_sys
+// through video_calc_sync. clk_sys takes them only between reads (par_num == 0),
+// so one read gets values from one hand-over.
+wire        rd_idle = ~|par_num;
+
+wire  [7:0] sys_nres;
+wire        sys_int;
+wire [31:0] sys_hcnt, sys_vcnt, sys_ccnt;
+wire  [7:0] sys_pixrep;
+wire [15:0] sys_de_h;
+wire  [7:0] sys_de_v;
+wire [23:0] sys_fclks;
+wire        vid_new;
+
+video_calc_sync #(161) vid_sync
+(
+	.clk_in(clk_vid),
+	.din({vid_nres, |vid_int, vid_hcnt, vid_vcnt, vid_ccnt, vid_pixrep, vid_de_h, vid_de_v, vid_fclks}),
+	.clk_out(clk_sys),
+	.en(rd_idle),
+	.dout({sys_nres, sys_int, sys_hcnt, sys_vcnt, sys_ccnt, sys_pixrep, sys_de_h, sys_de_v, sys_fclks}),
+	.dout_new(vid_new)
+);
+
+wire [31:0] sys_htime, sys_vtime, sys_pix, sys_vtime_hdmi;
+wire        t100_new;
+
+video_calc_sync #(128) t100_sync
+(
+	.clk_in(clk_100),
+	.din({vid_htime, vid_vtime, vid_pix, vid_vtime_hdmi}),
+	.clk_out(clk_sys),
+	.en(rd_idle),
+	.dout({sys_htime, sys_vtime, sys_pix, sys_vtime_hdmi}),
+	.dout_new(t100_new)
+);
+
+// vid_nres steps only after the timing has been stable for 15 frames, as before.
+// A change of res is reported only after two more clk_100 hand-overs: the first
+// one may have been loaded before the change reached clk_sys, the second one
+// was loaded after it, so the clk_100 values read with the new res were taken
+// after the change.
+reg  [8:0] res = 0;
+reg  [8:0] res_new = 0;
+reg  [1:0] res_wait = 0;
+always @(posedge clk_sys) begin
+	if(t100_new && !res_wait[1]) res_wait <= res_wait + 1'd1;
+	if(vid_new && {sys_int, sys_nres} != res_new) begin
+		res_new  <= {sys_int, sys_nres};
+		res_wait <= 0;
+	end
+	if(rd_idle && res_wait[1]) res <= res_new;
+end
+
+always @(posedge clk_sys) begin
+	case(par_num)
+		1: dout <= {video_rotated, res};
+		2: dout <= sys_hcnt[15:0];
+		3: dout <= sys_hcnt[31:16];
+		4: dout <= sys_vcnt[15:0];
+		5: dout <= sys_vcnt[31:16];
+		6: dout <= sys_htime[15:0];
+		7: dout <= sys_htime[31:16];
+		8: dout <= sys_vtime[15:0];
+		9: dout <= sys_vtime[31:16];
+	  10: dout <= sys_pix[15:0];
+	  11: dout <= sys_pix[31:16];
+	  12: dout <= sys_vtime_hdmi[15:0];
+	  13: dout <= sys_vtime_hdmi[31:16];
+	  14: dout <= sys_ccnt[15:0];
+	  15: dout <= sys_ccnt[31:16];
+	  16: dout <= sys_pixrep;
+	  17: dout <= sys_de_h;
+	  18: dout <= sys_de_v;
+	  19: dout <= sys_fclks[15:0];
+	  20: dout <= {8'd0, sys_fclks[23:16]};
+	  default dout <= 0;
+	endcase
+end
+
+endmodule
+
+// Hands din from clk_in to clk_out with a req/ack handshake.
+// hold_d is loaded only after the last req has been acknowledged,
+// so it does not change while clk_out takes it into hold_q.
+module video_calc_sync #(parameter W = 1)
+(
+	input              clk_in,
+	input      [W-1:0] din,
+
+	input              clk_out,
+	input              en,
+	output     [W-1:0] dout,
+	output reg         dout_new = 0
+);
+
+reg [W-1:0] hold_d = 0;
+reg [W-1:0] hold_q = 0;
+reg         req = 0;
+reg         ack = 0;
+
+(* altera_attribute = {"-name SYNCHRONIZER_IDENTIFICATION FORCED_IF_ASYNCHRONOUS"} *) reg ack_m = 0;
+(* altera_attribute = {"-name SYNCHRONIZER_IDENTIFICATION FORCED_IF_ASYNCHRONOUS"} *) reg ack_s = 0;
+always @(posedge clk_in) begin
+	ack_m <= ack;
+	ack_s <= ack_m;
+	if(ack_s == req) begin
+		hold_d <= din;
+		req <= ~req;
+	end
+end
+
+(* altera_attribute = {"-name SYNCHRONIZER_IDENTIFICATION FORCED_IF_ASYNCHRONOUS"} *) reg req_m = 0;
+(* altera_attribute = {"-name SYNCHRONIZER_IDENTIFICATION FORCED_IF_ASYNCHRONOUS"} *) reg req_s = 0;
+always @(posedge clk_out) begin
+	req_m <= req;
+	req_s <= req_m;
+	dout_new <= 0;
+	if(en && req_s != ack) begin
+		hold_q <= hold_d;
+		ack <= req_s;
+		dout_new <= 1;
+	end
+end
+
+assign dout = hold_q;
 
 endmodule
 
