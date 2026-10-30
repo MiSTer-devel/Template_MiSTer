@@ -64,6 +64,20 @@ module hps_io #(parameter CONF_STR, CONF_STR_BRAM=0, PS2DIV=0, WIDE=0, VDNUM=1, 
 	output reg [15:0] joystick_r_analog_4,
 	output reg [15:0] joystick_r_analog_5,
 
+	// Analog triggers 0..255, released at power-up.
+	output reg  [7:0] joystick_l2_analog_0 = 0,
+	output reg  [7:0] joystick_l2_analog_1 = 0,
+	output reg  [7:0] joystick_l2_analog_2 = 0,
+	output reg  [7:0] joystick_l2_analog_3 = 0,
+	output reg  [7:0] joystick_l2_analog_4 = 0,
+	output reg  [7:0] joystick_l2_analog_5 = 0,
+	output reg  [7:0] joystick_r2_analog_0 = 0,
+	output reg  [7:0] joystick_r2_analog_1 = 0,
+	output reg  [7:0] joystick_r2_analog_2 = 0,
+	output reg  [7:0] joystick_r2_analog_3 = 0,
+	output reg  [7:0] joystick_r2_analog_4 = 0,
+	output reg  [7:0] joystick_r2_analog_5 = 0,
+
 	input      [15:0] joystick_0_rumble, // 15:8 - 'large' rumble motor magnitude, 7:0 'small' rumble motor magnitude
 	input      [15:0] joystick_1_rumble,
 	input      [15:0] joystick_2_rumble,
@@ -282,6 +296,8 @@ always@(posedge clk_sys) begin : uio_block
 	reg [15:0] cmd;
 	reg  [2:0] b_wr;
 	reg  [3:0] stick_idx;
+	reg  [7:0] atrig_idx;
+	reg  [7:0] atrig_l2;
 	reg  [3:0] pdsp_idx;
 	reg        ps2skip = 0;
 	reg  [3:0] stflg = 0;
@@ -484,6 +500,20 @@ always@(posedge clk_sys) begin : uio_block
 									endcase
 							endcase
 						end
+
+				// 0x46: player, L2, R2. Commit both triggers only after R2 arrives.
+				'h46: case(byte_cnt)
+							1: atrig_idx <= io_din[7:0];
+							2: atrig_l2 <= io_din[7:0];
+							3: case(atrig_idx)
+									0: {joystick_r2_analog_0, joystick_l2_analog_0} <= {io_din[7:0], atrig_l2};
+									1: {joystick_r2_analog_1, joystick_l2_analog_1} <= {io_din[7:0], atrig_l2};
+									2: {joystick_r2_analog_2, joystick_l2_analog_2} <= {io_din[7:0], atrig_l2};
+									3: {joystick_r2_analog_3, joystick_l2_analog_3} <= {io_din[7:0], atrig_l2};
+									4: {joystick_r2_analog_4, joystick_l2_analog_4} <= {io_din[7:0], atrig_l2};
+									5: {joystick_r2_analog_5, joystick_l2_analog_5} <= {io_din[7:0], atrig_l2};
+								endcase
+						endcase
 
 				// notify image selection
 				'h1c: begin
