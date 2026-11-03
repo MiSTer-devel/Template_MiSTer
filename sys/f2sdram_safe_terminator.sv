@@ -124,9 +124,11 @@ end
 reg  state_write = 1'b0;
 wire next_state_write;
 
+wire first_beat            = !state_write && write_slave && !waitrequest_master;
 wire burst_write_start     = !state_write  && next_state_write;
-wire valid_write_data      = state_write && !waitrequest_master;
-wire burst_write_end       = state_write && (write_burstcounter == write_burstcount_latch - 1'd1);
+// A beat needs `write`, and the burst ends on its last beat, not the clock after the last but one
+wire valid_write_data      = state_write && write_slave && !waitrequest_master;
+wire burst_write_end       = valid_write_data && (write_burstcounter == write_burstcount_latch - 1'd1);
 wire valid_non_burst_write = !state_write && write_slave && (burstcount_slave == 1) && !waitrequest_master;
 
 reg [BURSTCOUNT_WIDTH-1:0] write_burstcounter     = 0;
@@ -137,7 +139,7 @@ always_ff @(posedge clk) begin
 	state_write <= next_state_write;
 
 	if (burst_write_start) begin
-		write_burstcounter     <= waitrequest_master ? 1'd0 : 1'd1;
+		write_burstcounter     <= 1'd1;   // The burst starts with its first accepted beat
 		write_burstcount_latch <= burstcount_slave;
 		write_address_latch    <= address_slave;
 	end
@@ -148,9 +150,8 @@ end
 
 always_comb begin
 	if (!state_write) begin
-		if (valid_non_burst_write)
-			next_state_write = 1'b0;
-		else if (write_slave)
+		// In flight only once the first beat of more than one is accepted
+		if (first_beat && burstcount_slave != 1)
 			next_state_write = 1'b1;
 		else
 			next_state_write = 1'b0;
@@ -190,13 +191,18 @@ always_ff @(posedge clk) begin
 					write_terminating          <= 1;
 					burstcount_latch           <= write_burstcount_latch;
 					address_latch              <= write_address_latch;
-					write_terminate_counter    <= waitrequest_master ? write_burstcounter : write_burstcounter + 1'd1;
+					// This clock's beat counts only if there is one
+					write_terminate_counter    <= valid_write_data ? write_burstcounter + 1'd1 : write_burstcounter;
 				end
 				else if (on_start_write_transaction) begin
-					if (!valid_non_burst_write) begin
-						write_terminating       <= 1;
-						write_terminate_counter <= waitrequest_master ? 1'd0 : 1'd1;
-					end
+					// Its first beat is taken on this clock
+					write_terminating          <= 1;
+					write_terminate_counter    <= 1'd1;
+				end
+				else if (write_slave && waitrequest_master) begin
+					// A write the port has not taken yet: the whole command is carried through
+					write_terminating          <= 1;
+					write_terminate_counter    <= 1'd0;
 				end
 				else if (read_slave && waitrequest_master) begin
 					// Need to keep read signal, burstcount and address until waitrequest_master deasserted
@@ -216,8 +222,11 @@ always_ff @(posedge clk) begin
 
 	if (write_terminating) begin
 		// Continue write transaction until the end
-		if (!waitrequest_master) write_terminate_counter <= write_terminate_counter + 1'd1;
-		if (write_terminate_counter == burstcount_latch - 1'd1) write_terminating <= 0;
+		// Done when the last beat is taken, not a clock after the last but one
+		if (!waitrequest_master) begin
+			write_terminate_counter <= write_terminate_counter + 1'd1;
+			if (write_terminate_counter == burstcount_latch - 1'd1) write_terminating <= 0;
+		end
 	end
 end
 
