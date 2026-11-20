@@ -242,7 +242,7 @@ end
 
 reg [1:0] i_fb,o_fb;
 always @(posedge CLK_VIDEO) begin
-	reg old_vbl,old_vs;
+	reg old_vbl,old_vs,ready;
 	old_vbl <= FB_VBL;
 	old_vs <= VGA_VS;
 
@@ -251,8 +251,15 @@ always @(posedge CLK_VIDEO) begin
 		if(~old_vs & VGA_VS)  i_fb<={1'b0,~i_fb[0]};
 	end
 	else begin
-		if(~old_vbl & FB_VBL) o_fb<=buf_next(o_fb,i_fb);
-		if(~old_vs & VGA_VS)  i_fb<=buf_next(i_fb,o_fb);
+		if(~old_vs & VGA_VS) begin
+			i_fb<=buf_next(i_fb,o_fb);
+			ready<=1;
+		end
+		if(~old_vbl & FB_VBL) begin
+			if(~old_vs & VGA_VS) o_fb<=i_fb;                // frame finished on this same clock
+			else if(ready)       o_fb<=buf_next(o_fb,i_fb); // newest finished frame, otherwise repeat
+			ready<=0;
+		end
 	end
 end
 
