@@ -58,7 +58,7 @@ module audio_out
 	// SPDIF
    output       spdif,
 
-	// Sigma-Delta DAC
+	// 1-bit DAC
 	output       dac_l,
 	output       dac_r
 );
@@ -119,20 +119,20 @@ spdif toslink
 	.spdif_o(spdif)
 );
 
-sigma_delta_dac #(15) sd_l
+hybrid_pwm_sd_2ndorder sd_l
 (
-	.CLK(clk),
-	.RESET(reset),
-	.DACin({~al[15], al[14:0]}),
-	.DACout(dac_l)
+	.clk(clk),
+	.reset(reset),
+	.d({~al[15], al[14:0]}),
+	.q(dac_l)
 );
 
-sigma_delta_dac #(15) sd_r
+hybrid_pwm_sd_2ndorder sd_r
 (
-	.CLK(clk),
-	.RESET(reset),
-	.DACin({~ar[15], ar[14:0]}),
-	.DACout(dac_r)
+	.clk(clk),
+	.reset(reset),
+	.d({~ar[15], ar[14:0]}),
+	.q(dac_r)
 );
 
 reg sample_ce;
