@@ -240,27 +240,26 @@ always @(posedge CLK_VIDEO) begin
 	end
 end
 
-reg [1:0] i_fb = 0, o_fb = 1, newest = 0;
-reg       ready = 0, fb_old_vbl = 0, fb_old_vs = 0;
-wire      vs_e  = ~fb_old_vs  & VGA_VS;
-wire      vbl_e = ~fb_old_vbl & FB_VBL;
-wire      take  = vbl_e & (ready | vs_e);
-
+reg [1:0] i_fb,o_fb;
 always @(posedge CLK_VIDEO) begin
-	fb_old_vbl <= FB_VBL;
-	fb_old_vs  <= VGA_VS;
+	reg old_vbl,old_vs,ready;
+	old_vbl <= FB_VBL;
+	old_vs <= VGA_VS;
 
-	if(FB_LL) begin                                  // low-latency path unchanged
-		if(vbl_e) o_fb <= {1'b0,~i_fb[0]};
-		if(vs_e)  i_fb <= {1'b0,~i_fb[0]};
+	if(FB_LL) begin
+		if(~old_vbl & FB_VBL) o_fb<={1'b0,~i_fb[0]};
+		if(~old_vs & VGA_VS)  i_fb<={1'b0,~i_fb[0]};
 	end
 	else begin
-		if(vs_e) begin
-			newest <= i_fb;                          // frame just finished
-			i_fb   <= buf_next(i_fb, o_fb);          // neither the finished buffer nor HDMI's
+		if(~old_vs & VGA_VS) begin
+			i_fb<=buf_next(i_fb,o_fb);
+			ready<=1;
 		end
-		if(take) o_fb <= vs_e ? i_fb : newest;       // newest finished frame, otherwise repeat
-		ready <= (ready | vs_e) & ~take;
+		if(~old_vbl & FB_VBL) begin
+			if(~old_vs & VGA_VS) o_fb<=i_fb;                // frame finished on this same clock
+			else if(ready)       o_fb<=buf_next(o_fb,i_fb); // newest finished frame, otherwise repeat
+			ready<=0;
+		end
 	end
 end
 
